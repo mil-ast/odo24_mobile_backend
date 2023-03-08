@@ -1,8 +1,10 @@
 {
 	"app" : {
-		"server_addr" : "127.0.0.1:8000",
+		"server_addr" : "0.0.0.0:8000",
 		"imageMagick" : "convert",
-		"secret_key_file": "secret_key.txt"
+		"jwt_access_secret": "jwt_access_secret",
+		"jwt_refresh_secret": "jwt_refresh_secret",
+		"password_salt": "salt"
 	},
 	"smtp" : {
 		"host" : "smtp.yandex.ru",

@@ -18,9 +18,11 @@ type Oauth struct {
 // Configuration структура конфига
 type Configuration struct {
 	App struct {
-		ServerAddr  string `json:"server_addr"`
-		ImageMagick string `json:"imageMagick"`
-		SessionKey  string `json:"session_key"`
+		ServerAddr       string `json:"server_addr"`
+		ImageMagick      string `json:"imageMagick"`
+		JwtAccessSecret  string `json:"jwt_access_secret"`
+		JwtRefreshSecret string `json:"jwt_refresh_secret"`
+		PasswordSalt     string `json:"password_salt"`
 	} `json:"app"`
 	SMTP struct {
 		Host     string `json:"host"`
