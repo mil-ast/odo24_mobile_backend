@@ -22,10 +22,12 @@ func InitHandlers() *gin.Engine {
 	authCtrl := handlers.NewAuthController()
 	apiAuth := r.Group("/api/auth")
 	apiAuth.POST("/login", authCtrl.Login)
+	apiAuth.POST("/refresh_token", authCtrl.RefreshToken)
+	apiAuth.POST("/change_password", binding.Auth, authCtrl.ChangePassword)
 
 	//cars
 	carsCtrl := handlers.NewCarsController()
-	apiCars := r.Group("/api/cars", binding.CheckAuth)
+	apiCars := r.Group("/api/cars", binding.Auth)
 	apiCars.GET("/get", carsCtrl.GetCarsByCurrentUser)
 
 	return r

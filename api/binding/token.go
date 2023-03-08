@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CheckAuth(c *gin.Context) {
+func Auth(c *gin.Context) {
 	bearerToken := c.Request.Header.Get("Authorization")
 
 	splitToken := strings.Split(bearerToken, " ")
