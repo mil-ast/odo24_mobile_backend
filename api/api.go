@@ -28,7 +28,9 @@ func InitHandlers() *gin.Engine {
 	//cars
 	carsCtrl := handlers.NewCarsController()
 	apiCars := r.Group("/api/cars", binding.Auth)
-	apiCars.GET("/get", carsCtrl.GetCarsByCurrentUser)
+	apiCars.GET("", carsCtrl.GetCarsByCurrentUser)
+	apiCars.POST("", carsCtrl.Create)
+	apiCars.PUT("/:carID", carsCtrl.Update)
 
 	return r
 }

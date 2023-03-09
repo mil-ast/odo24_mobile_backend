@@ -1,3 +1,4 @@
 vendor
 secret_key.txt
 config.json
+__debug_bin

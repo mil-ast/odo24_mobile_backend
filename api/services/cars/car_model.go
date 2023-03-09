@@ -6,3 +6,9 @@ type CarModel struct {
 	Odo    uint32 `json:"odo"`
 	Avatar bool   `json:"avatar"`
 }
+
+type CarCreateModel struct {
+	Name   string `json:"name"`
+	Odo    uint32 `json:"odo"`
+	Avatar bool   `json:"avatar"`
+}

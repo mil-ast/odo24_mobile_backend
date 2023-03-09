@@ -32,3 +32,31 @@ func (srv *CarsService) GetCarsByUser(userID int64) ([]CarModel, error) {
 
 	return cars, nil
 }
+
+func (srv *CarsService) Create(userID int64, carBody CarCreateModel) (*CarModel, error) {
+	pg := db.Conn()
+
+	var carID int64
+	err := pg.QueryRow(`INSERT INTO service_book.car (user_id,"name",odo,avatar) VALUES ($1,$2,$3,$4) RETURNING car_id`, userID, carBody.Name, carBody.Odo, carBody.Avatar).Scan(&carID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CarModel{
+		CarID:  carID,
+		Name:   carBody.Name,
+		Odo:    carBody.Odo,
+		Avatar: carBody.Avatar,
+	}, nil
+}
+
+func (srv *CarsService) Update(carBody CarModel) error {
+	pg := db.Conn()
+
+	_, err := pg.Exec(`UPDATE service_book.car SET "name"=$1,odo=$2,avatar=$3 WHERE car_id=$4`, carBody.Name, carBody.Odo, carBody.Avatar, carBody.CarID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
