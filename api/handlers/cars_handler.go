@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
+	"odo24_mobile_backend/api/services"
 	cars_service "odo24_mobile_backend/api/services/cars"
 	"strconv"
 
@@ -56,7 +58,10 @@ func (ctrl *CarsController) Create(c *gin.Context) {
 
 	c.JSON(http.StatusOK, car)
 }
+
 func (ctrl *CarsController) Update(c *gin.Context) {
+	userID := c.MustGet("userID").(int64)
+
 	paramCarID, ok := c.Params.Get("carID")
 	if !ok {
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -64,7 +69,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 	}
 
 	carID, err := strconv.ParseInt(paramCarID, 10, 64)
-	if !ok {
+	if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -86,9 +91,42 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 		Odo:    body.Odo,
 		Avatar: body.Avatar,
 	}
-	err = ctrl.service.Update(model)
+	err = ctrl.service.Update(userID, model)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		if errors.Is(err, services.ErrorNoPermission) {
+			c.AbortWithStatus(http.StatusForbidden)
+		} else {
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+}
+
+func (ctrl *CarsController) Delete(c *gin.Context) {
+	userID := c.MustGet("userID").(int64)
+
+	paramCarID, ok := c.Params.Get("carID")
+	if !ok {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	carID, err := strconv.ParseInt(paramCarID, 10, 64)
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	err = ctrl.service.Delete(userID, carID)
+	if err != nil {
+		if errors.Is(err, services.ErrorNoPermission) {
+			c.AbortWithStatus(http.StatusForbidden)
+		} else {
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}
 		return
 	}
 

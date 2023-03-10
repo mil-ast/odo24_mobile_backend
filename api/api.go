@@ -12,7 +12,7 @@ func InitHandlers() *gin.Engine {
 
 	r.GET("/api/ping", handlers.Ping)
 
-	// register
+	//register
 	registerCtrl := handlers.NewRegisterController()
 	apiRegister := r.Group("/api/register")
 	apiRegister.POST("/send_code", registerCtrl.SendEmailCodeConfirmation)
@@ -31,6 +31,13 @@ func InitHandlers() *gin.Engine {
 	apiCars.GET("", carsCtrl.GetCarsByCurrentUser)
 	apiCars.POST("", carsCtrl.Create)
 	apiCars.PUT("/:carID", carsCtrl.Update)
+	apiCars.DELETE("/:carID", carsCtrl.Delete)
+
+	//groups
+	groupsCtrl := handlers.NewGroupsController()
+	apiGroups := r.Group("/api/groups", binding.Auth)
+	apiGroups.GET("", groupsCtrl.GetGroupsByCurrentUser)
+	apiGroups.POST("", groupsCtrl.Create)
 
 	return r
 }

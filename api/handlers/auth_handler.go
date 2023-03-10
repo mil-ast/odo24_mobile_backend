@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"odo24_mobile_backend/api/services"
 	auth_service "odo24_mobile_backend/api/services/auth"
 	"odo24_mobile_backend/config"
 	"strings"
@@ -35,7 +36,7 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 
 	token, err := ctrl.service.Login(body.Email, body.Password)
 	if err != nil {
-		if errors.Is(err, auth_service.ErrorUnauthorize) {
+		if errors.Is(err, services.ErrorUnauthorize) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)
@@ -68,7 +69,7 @@ func (ctrl *AuthController) RefreshToken(c *gin.Context) {
 
 	result, err := ctrl.service.RefreshToken(accessToken, body.RefreshToken)
 	if err != nil {
-		if errors.Is(err, auth_service.ErrorUnauthorize) {
+		if errors.Is(err, services.ErrorUnauthorize) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)

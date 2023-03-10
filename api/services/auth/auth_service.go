@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"odo24_mobile_backend/api/services"
 	"odo24_mobile_backend/config"
 	"odo24_mobile_backend/db"
 	"time"
@@ -12,8 +13,6 @@ import (
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
-
-var ErrorUnauthorize = errors.New("unauthorize")
 
 type AuthService struct {
 	jwtTokenSecret   string
@@ -41,7 +40,7 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 	}
 
 	if user.UserID == 0 {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	hasher := sha1.New()
@@ -49,7 +48,7 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 	sum := hasher.Sum([]byte(srv.passwordSalt))
 
 	if !bytes.Equal(sum, user.Password) {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	tokens, tokenUUID, err := srv.tokenGenerate(user.UserID)
@@ -105,35 +104,35 @@ RefreshToken рефреш токена
 func (srv *AuthService) RefreshToken(accessTokenStr, refreshTokenStr string) (*AuthResultModel, error) {
 	accessToken, err := getToken(accessTokenStr, []byte(srv.jwtTokenSecret), jwt.WithoutClaimsValidation())
 	if err != nil {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	refreshToken, err := getToken(refreshTokenStr, []byte(srv.jwtRefreshSecret), jwt.WithoutClaimsValidation())
 	if err != nil {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	accessClaims, ok := accessToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	refreshClaims, ok := refreshToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	accessUUID := accessClaims["uuid"].(string)
 	refreshUUID := refreshClaims["uuid"].(string)
 	if accessUUID != refreshUUID {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	// проверка, что рефреш токен не протух
 	refreshTokenExp := int64(refreshClaims["exp"].(float64))
 	nowTime := time.Now().Unix()
 	if nowTime > refreshTokenExp {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	userID := int64(accessClaims["uid"].(float64))
@@ -146,7 +145,7 @@ func (srv *AuthService) RefreshToken(accessTokenStr, refreshTokenStr string) (*A
 	}
 
 	if dbRefreshUUID != refreshUUID {
-		return nil, ErrorUnauthorize
+		return nil, services.ErrorUnauthorize
 	}
 
 	tokens, tokenUUID, err := srv.tokenGenerate(userID)
