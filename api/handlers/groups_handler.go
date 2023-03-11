@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
-	"odo24_mobile_backend/api/services"
 	groups_service "odo24_mobile_backend/api/services/groups"
 	"strconv"
 
@@ -78,11 +76,7 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 	}
 	err = ctrl.service.Update(userID, model)
 	if err != nil {
-		if errors.Is(err, services.ErrorNoPermission) {
-			c.AbortWithStatus(http.StatusForbidden)
-		} else {
-			c.AbortWithStatus(http.StatusInternalServerError)
-		}
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
@@ -96,11 +90,7 @@ func (ctrl *GroupsController) Delete(c *gin.Context) {
 
 	err := ctrl.service.Delete(userID, groupID)
 	if err != nil {
-		if errors.Is(err, services.ErrorNoPermission) {
-			c.AbortWithStatus(http.StatusForbidden)
-		} else {
-			c.AbortWithStatus(http.StatusInternalServerError)
-		}
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 

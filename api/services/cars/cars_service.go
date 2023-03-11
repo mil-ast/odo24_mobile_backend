@@ -14,7 +14,7 @@ func NewCarsService() *CarsService {
 func (srv *CarsService) GetCarsByUser(userID int64) ([]CarModel, error) {
 	pg := db.Conn()
 
-	rows, err := pg.Query(`select c.car_id,c."name", c.odo, c.avatar from service_book.car c where c.user_id=$1`, userID)
+	rows, err := pg.Query(`SELECT c.car_id,c."name", c.odo, c.avatar FROM service_book.car c WHERE c.user_id=$1`, userID)
 	if err != nil {
 		return nil, err
 	}

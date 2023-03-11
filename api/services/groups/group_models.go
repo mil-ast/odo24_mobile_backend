@@ -7,6 +7,6 @@ type GroupModel struct {
 }
 
 type GroupCreateModel struct {
-	Name string `json:"name"`
-	Sort uint32 `json:"sort"`
+	Name string
+	Sort uint32
 }

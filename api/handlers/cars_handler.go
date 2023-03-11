@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
-	"odo24_mobile_backend/api/services"
 	cars_service "odo24_mobile_backend/api/services/cars"
 	"strconv"
 
@@ -82,11 +80,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 	}
 	err = ctrl.service.Update(userID, model)
 	if err != nil {
-		if errors.Is(err, services.ErrorNoPermission) {
-			c.AbortWithStatus(http.StatusForbidden)
-		} else {
-			c.AbortWithStatus(http.StatusInternalServerError)
-		}
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
@@ -100,11 +94,7 @@ func (ctrl *CarsController) Delete(c *gin.Context) {
 
 	err := ctrl.service.Delete(userID, carID)
 	if err != nil {
-		if errors.Is(err, services.ErrorNoPermission) {
-			c.AbortWithStatus(http.StatusForbidden)
-		} else {
-			c.AbortWithStatus(http.StatusInternalServerError)
-		}
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 

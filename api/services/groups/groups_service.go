@@ -14,7 +14,7 @@ func NewGroupsService() *GroupsService {
 func (srv *GroupsService) GetGroupsByUser(userID int64) ([]GroupModel, error) {
 	pg := db.Conn()
 
-	rows, err := pg.Query(`select g.group_id,g."name",g.sort from service_book.service_groups g where g.user_id=$1`, userID)
+	rows, err := pg.Query(`SELECT g.group_id,g."name",g.sort FROM service_book.service_groups g WHERE g.user_id=$1`, userID)
 	if err != nil {
 		return nil, err
 	}

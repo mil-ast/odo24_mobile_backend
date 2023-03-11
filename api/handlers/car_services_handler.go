@@ -1,11 +1,8 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
-	"odo24_mobile_backend/api/services"
 	car_services_service "odo24_mobile_backend/api/services/car_services"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +18,7 @@ func NewCarServicesController() *CarServicesController {
 }
 
 func (ctrl *CarServicesController) GetGroupsByCurrentUser(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	groupID := c.MustGet("groupID").(int64)
 
 	var body struct {
 		CarID int64 `form:"car_id" binding:"required"`
@@ -33,35 +30,46 @@ func (ctrl *CarServicesController) GetGroupsByCurrentUser(c *gin.Context) {
 		return
 	}
 
-	groupID, err := ctrl.getGroupIDFromParams(c)
+	cars, err := ctrl.service.GetServices(body.CarID, groupID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	cars, err := ctrl.service.GetServices(userID, body.CarID, groupID)
-	if err != nil {
-		if errors.Is(err, services.ErrorNoPermission) {
-			c.AbortWithStatus(http.StatusForbidden)
-		} else {
-			c.AbortWithStatus(http.StatusInternalServerError)
-		}
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
 	c.JSON(http.StatusOK, cars)
 }
 
-func (ctrl *CarServicesController) getGroupIDFromParams(c *gin.Context) (int64, error) {
-	paramGroupID, ok := c.Params.Get("groupID")
-	if !ok {
-		return 0, errors.New("empty")
+func (ctrl *CarServicesController) Create(c *gin.Context) {
+	groupID := c.MustGet("groupID").(int64)
+
+	var body struct {
+		CarID        int64   `json:"car_id" binding:"required"`
+		Odo          *uint32 `json:"odo" binding:"omitempty"`
+		NextDistance *uint32 `json:"next_distance" binding:"omitempty"`
+		Dt           string  `json:"dt" binding:"required"`
+		Description  *string `json:"description" binding:"omitempty"`
+		Price        *uint32 `json:"price" binding:"omitempty"`
+	}
+	err := c.Bind(&body)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 
-	groupID, err := strconv.ParseInt(paramGroupID, 10, 64)
-	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return 0, errors.New("incorrect")
+	model := car_services_service.CarServiceCreateModel{
+		CarID:        body.CarID,
+		GroupID:      groupID,
+		Odo:          body.Odo,
+		NextDistance: body.NextDistance,
+		Dt:           body.Dt,
+		Description:  body.Description,
+		Price:        body.Price,
 	}
-	return groupID, nil
+	carService, err := ctrl.service.Create(model)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, carService)
 }

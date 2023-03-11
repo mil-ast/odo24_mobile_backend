@@ -43,8 +43,7 @@ func InitHandlers() *gin.Engine {
 
 	carServicesCtrl := handlers.NewCarServicesController()
 	apiGroups.GET("/:groupID/services", groupsCtrl.CheckParamGroupID, carServicesCtrl.GetGroupsByCurrentUser)
-
-	//apiCarServices := r.Group("/api/car_services", binding.Auth)
+	apiGroups.POST("/:groupID/services", groupsCtrl.CheckParamGroupID, carServicesCtrl.Create)
 
 	return r
 }
