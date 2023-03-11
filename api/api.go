@@ -30,14 +30,21 @@ func InitHandlers() *gin.Engine {
 	apiCars := r.Group("/api/cars", binding.Auth)
 	apiCars.GET("", carsCtrl.GetCarsByCurrentUser)
 	apiCars.POST("", carsCtrl.Create)
-	apiCars.PUT("/:carID", carsCtrl.Update)
-	apiCars.DELETE("/:carID", carsCtrl.Delete)
+	apiCars.PUT("/:carID", carsCtrl.CheckParamCarID, carsCtrl.Update)
+	apiCars.DELETE("/:carID", carsCtrl.CheckParamCarID, carsCtrl.Delete)
 
 	//groups
 	groupsCtrl := handlers.NewGroupsController()
 	apiGroups := r.Group("/api/groups", binding.Auth)
 	apiGroups.GET("", groupsCtrl.GetGroupsByCurrentUser)
 	apiGroups.POST("", groupsCtrl.Create)
+	apiGroups.PUT("/:groupID", groupsCtrl.CheckParamGroupID, groupsCtrl.Update)
+	apiGroups.DELETE("/:groupID", groupsCtrl.CheckParamGroupID, groupsCtrl.Delete)
+
+	carServicesCtrl := handlers.NewCarServicesController()
+	apiGroups.GET("/:groupID/services", groupsCtrl.CheckParamGroupID, carServicesCtrl.GetGroupsByCurrentUser)
+
+	//apiCarServices := r.Group("/api/car_services", binding.Auth)
 
 	return r
 }

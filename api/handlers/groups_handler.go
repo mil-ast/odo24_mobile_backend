@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
+	"odo24_mobile_backend/api/services"
 	groups_service "odo24_mobile_backend/api/services/groups"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,4 +55,79 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, group)
+}
+
+func (ctrl *GroupsController) Update(c *gin.Context) {
+	userID := c.MustGet("userID").(int64)
+	groupID := c.MustGet("groupID").(int64)
+
+	var body struct {
+		Name string `json:"name" binding:"required"`
+		Sort uint32 `json:"sort"`
+	}
+	err := c.Bind(&body)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	model := groups_service.GroupModel{
+		GroupID: groupID,
+		Name:    body.Name,
+		Sort:    body.Sort,
+	}
+	err = ctrl.service.Update(userID, model)
+	if err != nil {
+		if errors.Is(err, services.ErrorNoPermission) {
+			c.AbortWithStatus(http.StatusForbidden)
+		} else {
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+}
+
+func (ctrl *GroupsController) Delete(c *gin.Context) {
+	userID := c.MustGet("userID").(int64)
+	groupID := c.MustGet("groupID").(int64)
+
+	err := ctrl.service.Delete(userID, groupID)
+	if err != nil {
+		if errors.Is(err, services.ErrorNoPermission) {
+			c.AbortWithStatus(http.StatusForbidden)
+		} else {
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+}
+
+func (ctrl *GroupsController) CheckParamGroupID(c *gin.Context) {
+	paramGroupID, ok := c.Params.Get("groupID")
+	if !ok {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	groupID, err := strconv.ParseInt(paramGroupID, 10, 64)
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	userID := c.MustGet("userID").(int64)
+
+	err = ctrl.service.CheckOwner(groupID, userID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	c.Set("groupID", groupID)
 }

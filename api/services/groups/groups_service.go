@@ -1,6 +1,7 @@
 package groups_service
 
 import (
+	"odo24_mobile_backend/api/services"
 	"odo24_mobile_backend/db"
 )
 
@@ -48,4 +49,36 @@ func (srv *GroupsService) Create(userID int64, groupBody GroupCreateModel) (*Gro
 		Name:    groupBody.Name,
 		Sort:    groupBody.Sort,
 	}, nil
+}
+
+func (srv *GroupsService) Update(userID int64, groupBody GroupModel) error {
+	pg := db.Conn()
+
+	_, err := pg.Exec(`UPDATE service_book.service_groups SET "name"=$1 WHERE group_id=$2`, groupBody.Name, groupBody.GroupID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (srv *GroupsService) Delete(userID int64, groupID int64) error {
+	pg := db.Conn()
+
+	_, err := pg.Exec(`DELETE FROM service_book.service_groups WHERE group_id=$1`, groupID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (srv *GroupsService) CheckOwner(groupID, userID int64) error {
+	pg := db.Conn()
+	var dbUserID int64
+	pg.QueryRow("SELECT user_id FROM service_book.service_groups c WHERE group_id=$1", groupID).Scan(&dbUserID)
+	if dbUserID != userID {
+		return services.ErrorNoPermission
+	}
+	return nil
 }

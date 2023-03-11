@@ -61,25 +61,14 @@ func (ctrl *CarsController) Create(c *gin.Context) {
 
 func (ctrl *CarsController) Update(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
-
-	paramCarID, ok := c.Params.Get("carID")
-	if !ok {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
-
-	carID, err := strconv.ParseInt(paramCarID, 10, 64)
-	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-		return
-	}
+	carID := c.MustGet("carID").(int64)
 
 	var body struct {
 		Name   string `json:"name" binding:"required"`
 		Odo    uint32 `json:"odo" binding:"required"`
 		Avatar bool   `json:"avatar"`
 	}
-	err = c.Bind(&body)
+	err := c.Bind(&body)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -107,7 +96,23 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 
 func (ctrl *CarsController) Delete(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
+	carID := c.MustGet("carID").(int64)
 
+	err := ctrl.service.Delete(userID, carID)
+	if err != nil {
+		if errors.Is(err, services.ErrorNoPermission) {
+			c.AbortWithStatus(http.StatusForbidden)
+		} else {
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+}
+
+func (ctrl *CarsController) CheckParamCarID(c *gin.Context) {
 	paramCarID, ok := c.Params.Get("carID")
 	if !ok {
 		c.AbortWithStatus(http.StatusBadRequest)
@@ -120,16 +125,13 @@ func (ctrl *CarsController) Delete(c *gin.Context) {
 		return
 	}
 
-	err = ctrl.service.Delete(userID, carID)
+	userID := c.MustGet("userID").(int64)
+
+	err = ctrl.service.CheckOwner(carID, userID)
 	if err != nil {
-		if errors.Is(err, services.ErrorNoPermission) {
-			c.AbortWithStatus(http.StatusForbidden)
-		} else {
-			c.AbortWithStatus(http.StatusInternalServerError)
-		}
+		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.Set("carID", carID)
 }

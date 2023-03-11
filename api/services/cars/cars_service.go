@@ -56,12 +56,6 @@ func (srv *CarsService) Create(userID int64, carBody CarCreateModel) (*CarModel,
 func (srv *CarsService) Update(userID int64, carBody CarModel) error {
 	pg := db.Conn()
 
-	var dbUserID int64
-	pg.QueryRow("SELECT user_id FROM service_book.car c WHERE car_id=$1", carBody.CarID).Scan(&dbUserID)
-	if dbUserID != userID {
-		return services.ErrorNoPermission
-	}
-
 	_, err := pg.Exec(`UPDATE service_book.car SET "name"=$1,odo=$2,avatar=$3 WHERE car_id=$4`, carBody.Name, carBody.Odo, carBody.Avatar, carBody.CarID)
 	if err != nil {
 		return err
@@ -73,16 +67,20 @@ func (srv *CarsService) Update(userID int64, carBody CarModel) error {
 func (srv *CarsService) Delete(userID int64, carID int64) error {
 	pg := db.Conn()
 
-	var dbUserID int64
-	pg.QueryRow("SELECT user_id FROM service_book.car c WHERE car_id=$1", carID).Scan(&dbUserID)
-	if dbUserID != userID {
-		return services.ErrorNoPermission
-	}
-
 	_, err := pg.Exec(`DELETE FROM service_book.car WHERE car_id=$1`, carID)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (srv *CarsService) CheckOwner(carID, userID int64) error {
+	pg := db.Conn()
+	var dbUserID int64
+	pg.QueryRow("SELECT user_id FROM service_book.car c WHERE car_id=$1", carID).Scan(&dbUserID)
+	if dbUserID != userID {
+		return services.ErrorNoPermission
+	}
 	return nil
 }
