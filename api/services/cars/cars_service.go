@@ -53,7 +53,7 @@ func (srv *CarsService) Create(userID int64, carBody CarCreateModel) (*CarModel,
 	}, nil
 }
 
-func (srv *CarsService) Update(userID int64, carBody CarModel) error {
+func (srv *CarsService) Update(carBody CarModel) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`UPDATE service_book.car SET "name"=$1,odo=$2,avatar=$3 WHERE car_id=$4`, carBody.Name, carBody.Odo, carBody.Avatar, carBody.CarID)
@@ -64,7 +64,7 @@ func (srv *CarsService) Update(userID int64, carBody CarModel) error {
 	return nil
 }
 
-func (srv *CarsService) Delete(userID int64, carID int64) error {
+func (srv *CarsService) Delete(carID int64) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`DELETE FROM service_book.car WHERE car_id=$1`, carID)

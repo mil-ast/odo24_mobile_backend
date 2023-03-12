@@ -18,3 +18,11 @@ type CarServiceCreateModel struct {
 	Description  *string
 	Price        *uint32
 }
+type CarServiceUpdateModel struct {
+	ServiceID    int64
+	Odo          *uint32
+	NextDistance *uint32
+	Dt           string
+	Description  *string
+	Price        *uint32
+}

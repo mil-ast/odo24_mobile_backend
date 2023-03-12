@@ -58,7 +58,6 @@ func (ctrl *CarsController) Create(c *gin.Context) {
 }
 
 func (ctrl *CarsController) Update(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
 	carID := c.MustGet("carID").(int64)
 
 	var body struct {
@@ -78,7 +77,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 		Odo:    body.Odo,
 		Avatar: body.Avatar,
 	}
-	err = ctrl.service.Update(userID, model)
+	err = ctrl.service.Update(model)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -89,10 +88,9 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 }
 
 func (ctrl *CarsController) Delete(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
 	carID := c.MustGet("carID").(int64)
 
-	err := ctrl.service.Delete(userID, carID)
+	err := ctrl.service.Delete(carID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return

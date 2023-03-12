@@ -30,20 +30,27 @@ func InitHandlers() *gin.Engine {
 	apiCars := r.Group("/api/cars", binding.Auth)
 	apiCars.GET("", carsCtrl.GetCarsByCurrentUser)
 	apiCars.POST("", carsCtrl.Create)
-	apiCars.PUT("/:carID", carsCtrl.CheckParamCarID, carsCtrl.Update)
-	apiCars.DELETE("/:carID", carsCtrl.CheckParamCarID, carsCtrl.Delete)
+
+	apiCarsID := apiCars.Group("/:carID", carsCtrl.CheckParamCarID)
+	apiCarsID.PUT("", carsCtrl.Update)
+	apiCarsID.DELETE("", carsCtrl.Delete)
 
 	//groups
 	groupsCtrl := handlers.NewGroupsController()
 	apiGroups := r.Group("/api/groups", binding.Auth)
 	apiGroups.GET("", groupsCtrl.GetGroupsByCurrentUser)
 	apiGroups.POST("", groupsCtrl.Create)
-	apiGroups.PUT("/:groupID", groupsCtrl.CheckParamGroupID, groupsCtrl.Update)
-	apiGroups.DELETE("/:groupID", groupsCtrl.CheckParamGroupID, groupsCtrl.Delete)
+	apiGroupsID := apiGroups.Group("/:groupID", groupsCtrl.CheckParamGroupID)
+	apiGroupsID.PUT("", groupsCtrl.Update)
+	apiGroupsID.DELETE("", groupsCtrl.Delete)
 
+	//car services
+	apiServiceCtrl := apiCarsID.Group("/groups/:groupID/services", groupsCtrl.CheckParamGroupID)
 	carServicesCtrl := handlers.NewCarServicesController()
-	apiGroups.GET("/:groupID/services", groupsCtrl.CheckParamGroupID, carServicesCtrl.GetGroupsByCurrentUser)
-	apiGroups.POST("/:groupID/services", groupsCtrl.CheckParamGroupID, carServicesCtrl.Create)
+	apiServiceCtrl.GET("", carServicesCtrl.GetGroupsByCurrentUser)
+	apiServiceCtrl.POST("", carServicesCtrl.Create)
+	apiServiceCtrlID := r.Group("/:serviceID", carServicesCtrl.CheckParamServiceID)
+	apiServiceCtrlID.PUT("", carServicesCtrl.Create)
 
 	return r
 }
