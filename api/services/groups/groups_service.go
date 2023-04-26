@@ -1,8 +1,10 @@
 package groups_service
 
 import (
+	"fmt"
 	"odo24_mobile_backend/api/services"
 	"odo24_mobile_backend/db"
+	"strings"
 )
 
 type GroupsService struct{}
@@ -38,8 +40,15 @@ func (srv *GroupsService) GetGroupsByUser(userID int64) ([]GroupModel, error) {
 func (srv *GroupsService) Create(userID int64, groupBody GroupCreateModel) (*GroupModel, error) {
 	pg := db.Conn()
 
+	var sort uint32 = 0
+	row := pg.QueryRow(`select max(sg.sort) from service_book.service_groups sg where sg.user_id=$1`, userID)
+	if row != nil {
+		row.Scan(&sort)
+		sort += 1
+	}
+
 	var groupID int64
-	err := pg.QueryRow(`INSERT INTO service_book.service_groups (user_id,"name",sort) VALUES ($1,$2,$3) RETURNING group_id`, userID, groupBody.Name, groupBody.Sort).Scan(&groupID)
+	err := pg.QueryRow(`INSERT INTO service_book.service_groups (user_id,"name",sort) VALUES ($1,$2,$3) RETURNING group_id`, userID, groupBody.Name, sort).Scan(&groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +56,7 @@ func (srv *GroupsService) Create(userID int64, groupBody GroupCreateModel) (*Gro
 	return &GroupModel{
 		GroupID: groupID,
 		Name:    groupBody.Name,
-		Sort:    groupBody.Sort,
+		Sort:    sort,
 	}, nil
 }
 
@@ -60,6 +69,19 @@ func (srv *GroupsService) Update(userID int64, groupBody GroupModel) error {
 	}
 
 	return nil
+}
+
+func (srv *GroupsService) UpdateSort(userID int64, groupIDs []int64) error {
+	pg := db.Conn()
+
+	sortedIDs := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(groupIDs)), ","), "[]")
+
+	var query = fmt.Sprintf(`UPDATE service_book.service_groups SET sort=s.idx
+		FROM (SELECT * FROM LATERAL unnest(array[%s]) WITH ORDINALITY AS t(id,idx)) s
+		WHERE user_id=$1 AND group_id=s.id`, sortedIDs)
+
+	_, err := pg.Exec(query, userID)
+	return err
 }
 
 func (srv *GroupsService) Delete(userID int64, groupID int64) error {

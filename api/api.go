@@ -40,6 +40,7 @@ func InitHandlers() *gin.Engine {
 	apiGroups := r.Group("/api/groups", binding.Auth)
 	apiGroups.GET("", groupsCtrl.GetGroupsByCurrentUser)
 	apiGroups.POST("", groupsCtrl.Create)
+	apiGroups.POST("/update_sort", groupsCtrl.UpdateSort)
 	apiGroupsID := apiGroups.Group("/:groupID", groupsCtrl.CheckParamGroupID)
 	apiGroupsID.PUT("", groupsCtrl.Update)
 	apiGroupsID.DELETE("", groupsCtrl.Delete)

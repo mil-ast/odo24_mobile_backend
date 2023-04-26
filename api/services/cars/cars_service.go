@@ -14,7 +14,11 @@ func NewCarsService() *CarsService {
 func (srv *CarsService) GetCarsByUser(userID int64) ([]CarModel, error) {
 	pg := db.Conn()
 
-	rows, err := pg.Query(`SELECT c.car_id,c."name", c.odo, c.avatar FROM service_book.car c WHERE c.user_id=$1`, userID)
+	rows, err := pg.Query(`SELECT c.car_id, c."name", c.odo, c.avatar, count(s.service_id) services_total
+		FROM service_book.car c
+		LEFT JOIN service_book.services s ON s.car_id = c.car_id
+		WHERE c.user_id=$1
+		GROUP BY c.car_id`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +29,7 @@ func (srv *CarsService) GetCarsByUser(userID int64) ([]CarModel, error) {
 
 	for rows.Next() {
 		var car CarModel
-		err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar)
+		err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar, &car.ServicesTotal)
 		if err != nil {
 			return nil, err
 		}

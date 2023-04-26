@@ -3,6 +3,7 @@ package auth_service
 import (
 	"bytes"
 	"crypto/sha1"
+	"database/sql"
 	"errors"
 	"fmt"
 	"odo24_mobile_backend/api/services"
@@ -36,6 +37,9 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 	}
 	err := pg.QueryRow("select u.user_id,u.password_hash from profiles.users u where u.login = $1", email).Scan(&user.UserID, &user.Password)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, services.ErrorUnauthorize
+		}
 		return nil, err
 	}
 
@@ -228,10 +232,8 @@ func (srv *AuthService) tokenGenerate(userID int64) (*AuthResultModel, string, e
 	}
 
 	result := AuthResultModel{
-		AccessToken:     tokenString,
-		AccessTokenExp:  accessTokenExp,
-		RefreshToken:    refreshTokenString,
-		RefreshTokenExp: refreshTokenExp,
+		AccessToken:  tokenString,
+		RefreshToken: refreshTokenString,
 	}
 	return &result, tokenUUID, nil
 }

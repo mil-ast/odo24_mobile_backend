@@ -34,7 +34,6 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 
 	var body struct {
 		Name string `json:"name" binding:"required"`
-		Sort uint32 `json:"sort" binding:"required"`
 	}
 	err := c.Bind(&body)
 	if err != nil {
@@ -44,7 +43,6 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 
 	model := groups_service.GroupCreateModel{
 		Name: body.Name,
-		Sort: body.Sort,
 	}
 	group, err := ctrl.service.Create(userID, model)
 	if err != nil {
@@ -61,7 +59,6 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 
 	var body struct {
 		Name string `json:"name" binding:"required"`
-		Sort uint32 `json:"sort"`
 	}
 	err := c.Bind(&body)
 	if err != nil {
@@ -72,9 +69,29 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 	model := groups_service.GroupModel{
 		GroupID: groupID,
 		Name:    body.Name,
-		Sort:    body.Sort,
 	}
 	err = ctrl.service.Update(userID, model)
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+}
+
+func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
+	userID := c.MustGet("userID").(int64)
+
+	var body []int64
+
+	err := c.Bind(&body)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	err = ctrl.service.UpdateSort(userID, body)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
