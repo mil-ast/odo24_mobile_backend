@@ -66,6 +66,17 @@ func (srv *CarServicesService) Update(body CarServiceUpdateModel) error {
 	return nil
 }
 
+func (srv *CarServicesService) Delete(userID int64, serviceID int64) error {
+	pg := db.Conn()
+
+	_, err := pg.Exec(`DELETE FROM service_book.services WHERE service_id=$1`, serviceID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (srv *CarServicesService) CheckOwner(userID, serviceID int64) error {
 	pg := db.Conn()
 	var dbUserID int64

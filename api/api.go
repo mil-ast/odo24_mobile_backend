@@ -17,6 +17,8 @@ func InitHandlers() *gin.Engine {
 	apiRegister := r.Group("/api/register")
 	apiRegister.POST("/send_code", registerCtrl.SendEmailCodeConfirmation)
 	apiRegister.POST("/register_by_email", registerCtrl.RegisterByEmail)
+	apiRegister.POST("/recover_send_code", registerCtrl.RecoverSendEmailCodeConfirmation)
+	apiRegister.POST("/recover_password", registerCtrl.RecoverPassword)
 
 	//auth
 	authCtrl := handlers.NewAuthController()
@@ -50,8 +52,9 @@ func InitHandlers() *gin.Engine {
 	carServicesCtrl := handlers.NewCarServicesController()
 	apiServiceCtrl.GET("", carServicesCtrl.GetGroupsByCurrentUser)
 	apiServiceCtrl.POST("", carServicesCtrl.Create)
-	apiServiceCtrlID := r.Group("/:serviceID", carServicesCtrl.CheckParamServiceID)
+	apiServiceCtrlID := r.Group("/api/services/:serviceID", binding.Auth, carServicesCtrl.CheckParamServiceID)
 	apiServiceCtrlID.PUT("", carServicesCtrl.Update)
+	apiServiceCtrlID.DELETE("", carServicesCtrl.Delete)
 
 	return r
 }

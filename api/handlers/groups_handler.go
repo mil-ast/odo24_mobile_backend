@@ -20,13 +20,18 @@ func NewGroupsController() *GroupsController {
 
 func (ctrl *GroupsController) GetGroupsByCurrentUser(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
-	cars, err := ctrl.service.GetGroupsByUser(userID)
+	groups, err := ctrl.service.GetGroupsByUser(userID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, cars)
+	if len(groups) == 0 {
+		c.Status(http.StatusNoContent)
+		c.Abort()
+	} else {
+		c.JSON(http.StatusOK, groups)
+	}
 }
 
 func (ctrl *GroupsController) Create(c *gin.Context) {

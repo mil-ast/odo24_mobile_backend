@@ -26,7 +26,12 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, cars)
+	if len(cars) == 0 {
+		c.Status(http.StatusNoContent)
+		c.Abort()
+	} else {
+		c.JSON(http.StatusOK, cars)
+	}
 }
 
 func (ctrl *CarsController) Create(c *gin.Context) {

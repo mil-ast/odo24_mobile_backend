@@ -22,13 +22,18 @@ func (ctrl *CarServicesController) GetGroupsByCurrentUser(c *gin.Context) {
 	groupID := c.MustGet("groupID").(int64)
 	carID := c.MustGet("carID").(int64)
 
-	cars, err := ctrl.service.GetServices(carID, groupID)
+	services, err := ctrl.service.GetServices(carID, groupID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	c.JSON(http.StatusOK, cars)
+	if len(services) == 0 {
+		c.Status(http.StatusNoContent)
+		c.Abort()
+	} else {
+		c.JSON(http.StatusOK, services)
+	}
 }
 
 func (ctrl *CarServicesController) Create(c *gin.Context) {
@@ -91,6 +96,20 @@ func (ctrl *CarServicesController) Update(c *gin.Context) {
 		Price:        body.Price,
 	}
 	err = ctrl.service.Update(model)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+	c.Abort()
+}
+
+func (ctrl *CarServicesController) Delete(c *gin.Context) {
+	userID := c.MustGet("userID").(int64)
+	serviceID := c.MustGet("serviceID").(int64)
+
+	err := ctrl.service.Delete(userID, serviceID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return

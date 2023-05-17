@@ -15,17 +15,22 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	defaultAccessTokenExp  = time.Minute * 5 // TODO
+	defaultRefreshTokenExp = 24 * 30 * 6 * time.Hour
+)
+
 type AuthService struct {
 	jwtTokenSecret   string
 	jwtRefreshSecret string
-	passwordSalt     string
+	passwordSalt     []byte
 }
 
 func NewAuthService(jwtTokenSecret, jwtRefreshSecret, passwordSalt string) *AuthService {
 	return &AuthService{
 		jwtTokenSecret:   jwtTokenSecret,
 		jwtRefreshSecret: jwtRefreshSecret,
-		passwordSalt:     passwordSalt,
+		passwordSalt:     []byte(passwordSalt),
 	}
 }
 
@@ -48,8 +53,12 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 	}
 
 	hasher := sha1.New()
-	hasher.Write([]byte(password))
-	sum := hasher.Sum([]byte(srv.passwordSalt))
+	_, err = hasher.Write([]byte(password))
+	if err != nil {
+		return nil, err
+	}
+
+	sum := hasher.Sum(srv.passwordSalt)
 
 	if !bytes.Equal(sum, user.Password) {
 		return nil, services.ErrorUnauthorize
@@ -81,18 +90,18 @@ func (srv *AuthService) ChangePassword(userID int64, oldPassword, newPassword st
 	if err != nil {
 		return err
 	}
-	sumOldPasswd := hasherOldPassword.Sum([]byte(srv.passwordSalt))
+	sumOldPasswd := hasherOldPassword.Sum(srv.passwordSalt)
 
 	if !bytes.Equal(sumOldPasswd, currentPassword) {
 		return errors.New("invalid password")
 	}
 
 	hasherNewPassword := sha1.New()
-	hasherNewPassword.Write([]byte(newPassword))
+	_, err = hasherNewPassword.Write([]byte(newPassword))
 	if err != nil {
 		return err
 	}
-	sumNewPasswd := hasherNewPassword.Sum([]byte(srv.passwordSalt))
+	sumNewPasswd := hasherNewPassword.Sum(srv.passwordSalt)
 
 	_, err = pg.Exec("update profiles.users set password_hash=$1 where user_id=$2", sumNewPasswd, userID)
 	if err != nil {
@@ -208,7 +217,7 @@ func (srv *AuthService) tokenGenerate(userID int64) (*AuthResultModel, string, e
 	tokenUUID := uuid.New().String()
 
 	token := jwt.New(jwt.SigningMethodHS256)
-	accessTokenExp := time.Now().Add(20 * time.Minute).Unix()
+	accessTokenExp := time.Now().Add(defaultAccessTokenExp).Unix()
 	claims := token.Claims.(jwt.MapClaims)
 	claims["exp"] = accessTokenExp
 	claims["uid"] = userID
@@ -220,7 +229,7 @@ func (srv *AuthService) tokenGenerate(userID int64) (*AuthResultModel, string, e
 	}
 
 	refreshToken := jwt.New(jwt.SigningMethodHS256)
-	refreshTokenExp := time.Now().Add(24 * 30 * 6 * time.Hour).Unix()
+	refreshTokenExp := time.Now().Add(defaultRefreshTokenExp).Unix()
 	refreshClaims := refreshToken.Claims.(jwt.MapClaims)
 	refreshClaims["exp"] = refreshTokenExp
 	refreshClaims["uid"] = userID
