@@ -15,7 +15,7 @@ func InitHandlers() *gin.Engine {
 	//register
 	registerCtrl := handlers.NewRegisterController()
 	apiRegister := r.Group("/api/register")
-	apiRegister.POST("/send_code", registerCtrl.SendEmailCodeConfirmation)
+	apiRegister.POST("/register_send_code", registerCtrl.SendEmailCodeConfirmation)
 	apiRegister.POST("/register_by_email", registerCtrl.RegisterByEmail)
 	apiRegister.POST("/recover_send_code", registerCtrl.RecoverSendEmailCodeConfirmation)
 	apiRegister.POST("/recover_password", registerCtrl.RecoverPassword)

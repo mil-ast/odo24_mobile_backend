@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+var ErrLoginAlreadyExists = errors.New("errLoginAlreadyExists")
+
 type RegisterService struct {
 	rnd          *rand.Rand
 	passwordSalt []byte
@@ -28,7 +30,7 @@ func NewRegisterService(passwordSalt string) *RegisterService {
 func (srv *RegisterService) SendEmailCodeConfirmation(email *mail.Address) error {
 	existsCode, _ := services.GetEmailCodeConfirmation(email)
 	if existsCode != nil {
-		return errors.New("код уже был отправлен")
+		return nil
 	}
 
 	code := srv.generateConfirmationCode()
@@ -92,6 +94,9 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 	}
 	err = pg.QueryRow("select * from profiles.register_by_email($1,$2);", email.Address, sumNewPasswd).Scan(&user.UserID, &user.Login)
 	if err != nil {
+		if err.Error() == "pq: login is exists" {
+			return ErrLoginAlreadyExists
+		}
 		return err
 	}
 
