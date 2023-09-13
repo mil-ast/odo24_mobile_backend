@@ -1,0 +1,37 @@
+{
+	"app" : {
+		"server_addr" : "0.0.0.0:8000",
+		"imageMagick" : "convert",
+		"jwt_access_secret": "jwt_access_secret",
+		"jwt_refresh_secret": "jwt_refresh_secret",
+		"password_salt": "salt"
+	},
+	"smtp" : {
+		"host" : "smtp.yandex.ru",
+		"port" : 465,
+		"from" : "login",
+		"password" : "password"
+	},
+	"db" : {
+		"driver_name" : "postgres",
+		"connection_string" : "host=localhost port=5432 dbname=odo24 user=postgres password=passwd sslmode=disable",
+		"max_idle_conns" : 50,
+		"max_open_conns" : 50
+	},
+	"oauth": {
+		"mailru": {
+			"TokenURL":     "https://oauth.mail.ru/token",
+			"GrantType":    "authorization_code",
+			"ClientID":     "client.id",
+			"ClientSecret": "client.sercet",
+			"RedirectURI":  "https://odo24.ru/book/profile/login/oauth?service=mail.ru"
+		},
+		"yandex": {
+			"TokenURL":     "https://oauth.yandex.ru/token",
+			"GrantType":    "authorization_code",
+			"ClientID":     "client.id",
+			"ClientSecret": "client.sercet",
+			"RedirectURI":  "https://odo24.ru/book/profile/login/oauth?service=yandex.ru"
+		}
+	}
+}
