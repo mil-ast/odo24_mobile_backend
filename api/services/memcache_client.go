@@ -4,18 +4,18 @@ import (
 	"encoding/binary"
 	"errors"
 	"net/mail"
+	"odo24_mobile_backend/config"
 	"strings"
 
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
-const host = "localhost:11211"
-
 var client *memcache.Client
 
 func getMemcachedClient() *memcache.Client {
+	cfg := config.GetInstance()
 	if client == nil {
-		client = memcache.New(host)
+		client = memcache.New(cfg.Memcache.Addr)
 	}
 	return client
 }
@@ -24,7 +24,9 @@ func newMemcachedClient() *memcache.Client {
 	if client != nil {
 		client.Close()
 	}
-	client = memcache.New(host)
+
+	cfg := config.GetInstance()
+	client = memcache.New(cfg.Memcache.Addr)
 	return client
 }
 

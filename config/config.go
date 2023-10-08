@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 )
 
 const configFilName string = "config.json"
@@ -30,6 +30,9 @@ type Configuration struct {
 		From     string `json:"from"`
 		Password string `json:"password"`
 	} `json:"smtp"`
+	Memcache struct {
+		Addr string `json:"addr"`
+	} `json:"memcache"`
 	Db struct {
 		DriverName       string `json:"driver_name"`
 		ConnectionString string `json:"connection_string"`
@@ -57,7 +60,7 @@ func GetInstance() Configuration {
 }
 
 func (cfg *Configuration) read() {
-	body, err := ioutil.ReadFile(configFilName)
+	body, err := os.ReadFile(configFilName)
 	if err != nil {
 		panic(err)
 	}
