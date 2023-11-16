@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-var ErrLoginAlreadyExists = errors.New("errLoginAlreadyExists")
+var (
+	ErrLoginAlreadyExists     = errors.New("errLoginAlreadyExists")
+	ErrCodeHasAlreadyBeenSent = errors.New("code has already been sent")
+)
 
 type RegisterService struct {
 	rnd          *rand.Rand
@@ -50,7 +53,7 @@ func (srv *RegisterService) SendEmailCodeConfirmation(email *mail.Address) error
 func (srv *RegisterService) PasswordRecoverySendEmailCodeConfirmation(email *mail.Address) error {
 	existsCode, _ := services.GetEmailCodeConfirmation(email)
 	if existsCode != nil {
-		return errors.New("код уже был отправлен")
+		return ErrCodeHasAlreadyBeenSent
 	}
 
 	code := srv.generateConfirmationCode()

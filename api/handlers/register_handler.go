@@ -104,7 +104,11 @@ func (ctrl *RegisterController) RecoverSendEmailCodeConfirmation(c *gin.Context)
 
 	err = ctrl.service.PasswordRecoverySendEmailCodeConfirmation(emailAddr)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		if errors.Is(err, register_service.ErrCodeHasAlreadyBeenSent) {
+			c.AbortWithError(http.StatusTooManyRequests, err)
+		} else {
+			c.AbortWithError(http.StatusInternalServerError, err)
+		}
 		return
 	}
 
