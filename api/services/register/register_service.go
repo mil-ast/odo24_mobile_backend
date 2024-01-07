@@ -51,14 +51,17 @@ func (srv *RegisterService) SendEmailCodeConfirmation(email *mail.Address) error
 }
 
 func (srv *RegisterService) PasswordRecoverySendEmailCodeConfirmation(email *mail.Address) error {
-	existsCode, _ := services.GetEmailCodeConfirmation(email)
+	existsCode, err := services.GetEmailCodeConfirmation(email)
+	if err != nil {
+		return err
+	}
 	if existsCode != nil {
 		return ErrCodeHasAlreadyBeenSent
 	}
 
 	code := srv.generateConfirmationCode()
 
-	err := services.AddEmailCodeConfirmation(email, code)
+	err = services.AddEmailCodeConfirmation(email, code)
 	if err != nil {
 		return err
 	}
