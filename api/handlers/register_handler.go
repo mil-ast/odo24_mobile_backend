@@ -81,7 +81,7 @@ func (ctrl *RegisterController) RegisterByEmail(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, http.StatusText(http.StatusOK))
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *RegisterController) RecoverSendEmailCodeConfirmation(c *gin.Context) {
@@ -145,5 +145,5 @@ func (ctrl *RegisterController) RecoverPassword(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, http.StatusText(http.StatusOK))
+	c.String(http.StatusNoContent, "")
 }

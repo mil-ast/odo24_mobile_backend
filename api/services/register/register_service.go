@@ -15,6 +15,7 @@ import (
 var (
 	ErrLoginAlreadyExists     = errors.New("errLoginAlreadyExists")
 	ErrCodeHasAlreadyBeenSent = errors.New("code has already been sent")
+	ErrCodeDoesNotMatch       = errors.New("code does not match")
 )
 
 type RegisterService struct {
@@ -82,7 +83,7 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 	confirmCode := binary.LittleEndian.Uint16(item.Value)
 
 	if code != confirmCode {
-		return errors.New("the code does not match")
+		return ErrCodeDoesNotMatch
 	}
 
 	hasherNewPassword := sha1.New()
@@ -94,15 +95,18 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 
 	pg := db.Conn()
 
-	var user struct {
-		UserID uint64
-		Login  string
-	}
-	err = pg.QueryRow("select * from profiles.register_by_email($1,$2);", email.Address, sumNewPasswd).Scan(&user.UserID, &user.Login)
+	var emailIsExists bool
+	err = pg.QueryRow("SELECT EXISTS(SELECT 1 from profiles.users u WHERE u.login=$1)", email.Address).Scan(&emailIsExists)
 	if err != nil {
-		if err.Error() == "pq: login is exists" {
-			return ErrLoginAlreadyExists
-		}
+		return err
+	}
+	if emailIsExists {
+		return ErrLoginAlreadyExists
+	}
+
+	var userID int64
+	err = pg.QueryRow(`INSERT INTO profiles.users (login, password_hash, oauth, last_login_dt, token_uuid) VALUES($1,$2,$3,now()::timestamp without time zone) RETURNING user_id`, email.Address, sumNewPasswd, false).Scan(&userID)
+	if err != nil {
 		return err
 	}
 
@@ -119,7 +123,7 @@ func (srv *RegisterService) PasswordRecovery(email *mail.Address, code uint16, p
 	confirmCode := binary.LittleEndian.Uint16(item.Value)
 
 	if code != confirmCode {
-		return errors.New("the code does not match")
+		return ErrCodeDoesNotMatch
 	}
 
 	hasherNewPassword := sha1.New()
