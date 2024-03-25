@@ -100,5 +100,5 @@ func (ctrl *AuthController) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	c.String(http.StatusNoContent, "")
 }
