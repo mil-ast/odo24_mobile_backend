@@ -27,8 +27,7 @@ func (ctrl *GroupsController) GetGroupsByCurrentUser(c *gin.Context) {
 	}
 
 	if len(groups) == 0 {
-		c.Status(http.StatusNoContent)
-		c.Abort()
+		c.String(http.StatusNoContent, "")
 	} else {
 		c.JSON(http.StatusOK, groups)
 	}
@@ -51,7 +50,7 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 	}
 	group, err := ctrl.service.Create(userID, model)
 	if err != nil {
-		c.AbortWithError(http.StatusOK, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -77,12 +76,11 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 	}
 	err = ctrl.service.Update(userID, model)
 	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
@@ -98,12 +96,11 @@ func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
 
 	err = ctrl.service.UpdateSort(userID, body)
 	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *GroupsController) Delete(c *gin.Context) {
@@ -112,12 +109,11 @@ func (ctrl *GroupsController) Delete(c *gin.Context) {
 
 	err := ctrl.service.Delete(userID, groupID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *GroupsController) CheckParamGroupID(c *gin.Context) {
@@ -129,7 +125,7 @@ func (ctrl *GroupsController) CheckParamGroupID(c *gin.Context) {
 
 	groupID, err := strconv.ParseInt(paramGroupID, 10, 64)
 	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 

@@ -101,8 +101,7 @@ func (ctrl *CarServicesController) Update(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *CarServicesController) Delete(c *gin.Context) {
@@ -115,8 +114,7 @@ func (ctrl *CarServicesController) Delete(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *CarServicesController) CheckParamServiceID(c *gin.Context) {

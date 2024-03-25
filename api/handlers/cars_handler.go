@@ -27,8 +27,7 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 	}
 
 	if len(cars) == 0 {
-		c.Status(http.StatusNoContent)
-		c.Abort()
+		c.String(http.StatusNoContent, "")
 	} else {
 		c.JSON(http.StatusOK, cars)
 	}
@@ -88,8 +87,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *CarsController) Delete(c *gin.Context) {
@@ -101,8 +99,7 @@ func (ctrl *CarsController) Delete(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusNoContent)
-	c.Abort()
+	c.String(http.StatusNoContent, "")
 }
 
 func (ctrl *CarsController) CheckParamCarID(c *gin.Context) {
