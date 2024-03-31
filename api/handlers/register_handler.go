@@ -73,8 +73,12 @@ func (ctrl *RegisterController) RegisterByEmail(c *gin.Context) {
 
 	err = ctrl.service.RegisterByEmail(emailAddr, body.Code, body.Password)
 	if err != nil {
-		if errors.Is(err, memcache.ErrCacheMiss) || errors.Is(err, register_service.ErrLoginAlreadyExists) {
+		if errors.Is(err, memcache.ErrCacheMiss) {
 			c.AbortWithError(http.StatusForbidden, err)
+			return
+		}
+		if errors.Is(err, register_service.ErrLoginAlreadyExists) {
+			c.AbortWithError(http.StatusConflict, err)
 			return
 		}
 		c.AbortWithError(http.StatusInternalServerError, err)
