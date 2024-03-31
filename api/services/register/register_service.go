@@ -91,7 +91,6 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 	if err != nil {
 		return err
 	}
-	sumNewPasswd := hasherNewPassword.Sum(srv.passwordSalt)
 
 	pg := db.Conn()
 
@@ -104,8 +103,9 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 		return ErrLoginAlreadyExists
 	}
 
+	sumNewPasswd := hasherNewPassword.Sum(srv.passwordSalt)
 	var userID int64
-	err = pg.QueryRow(`INSERT INTO profiles.users (login, password_hash, oauth, last_login_dt, token_uuid) VALUES($1,$2,$3,now()::timestamp without time zone) RETURNING user_id`, email.Address, sumNewPasswd, false).Scan(&userID)
+	err = pg.QueryRow(`INSERT INTO profiles.users (login,password_hash,oauth,last_login_dt) VALUES($1,$2,$3,now()::timestamp without time zone) RETURNING user_id`, email.Address, sumNewPasswd, false).Scan(&userID)
 	if err != nil {
 		return err
 	}
