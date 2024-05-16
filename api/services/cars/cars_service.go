@@ -68,6 +68,16 @@ func (srv *CarsService) Update(carBody CarModel) error {
 	return nil
 }
 
+func (srv *CarsService) UpdateODO(carID int64, odo uint32) error {
+	pg := db.Conn()
+
+	_, err := pg.Exec(`UPDATE service_book.car SET odo=$1 WHERE car_id=$2`, odo, carID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (srv *CarsService) Delete(carID int64) error {
 	pg := db.Conn()
 

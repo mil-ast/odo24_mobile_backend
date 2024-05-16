@@ -35,6 +35,7 @@ func InitHandlers() *gin.Engine {
 
 	apiCarsID := apiCars.Group("/:carID", carsCtrl.CheckParamCarID)
 	apiCarsID.PUT("", carsCtrl.Update)
+	apiCarsID.PUT("/update_odo", carsCtrl.UpdateODO)
 	apiCarsID.DELETE("", carsCtrl.Delete)
 
 	//groups

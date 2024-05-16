@@ -90,6 +90,27 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 	c.String(http.StatusNoContent, "")
 }
 
+func (ctrl *CarsController) UpdateODO(c *gin.Context) {
+	carID := c.MustGet("carID").(int64)
+
+	var body struct {
+		Odo uint32 `json:"odo" binding:"required"`
+	}
+	err := c.Bind(&body)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	err = ctrl.service.UpdateODO(carID, body.Odo)
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	c.String(http.StatusNoContent, "")
+}
+
 func (ctrl *CarsController) Delete(c *gin.Context) {
 	carID := c.MustGet("carID").(int64)
 
