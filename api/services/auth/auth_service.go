@@ -117,28 +117,28 @@ RefreshToken рефреш токена
 func (srv *AuthService) RefreshToken(accessTokenStr, refreshTokenStr string) (*AuthResultModel, error) {
 	accessToken, err := getToken(accessTokenStr, []byte(srv.jwtTokenSecret), jwt.WithoutClaimsValidation())
 	if err != nil {
-		return nil, services.ErrorUnauthorize
+		return nil, err
 	}
 
 	refreshToken, err := getToken(refreshTokenStr, []byte(srv.jwtRefreshSecret), jwt.WithoutClaimsValidation())
 	if err != nil {
-		return nil, services.ErrorUnauthorize
+		return nil, err
 	}
 
 	accessClaims, ok := accessToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, services.ErrorUnauthorize
+		return nil, errors.New("AccessTokenClaimsIsEmpty")
 	}
 
 	refreshClaims, ok := refreshToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, services.ErrorUnauthorize
+		return nil, errors.New("RefreshTokenClaimsIsEmpty")
 	}
 
 	accessUUID := accessClaims["uuid"].(string)
 	refreshUUID := refreshClaims["uuid"].(string)
 	if accessUUID != refreshUUID {
-		return nil, services.ErrorUnauthorize
+		return nil, errors.New("accessUUID not equal refreshUUID")
 	}
 
 	// проверка, что рефреш токен не протух

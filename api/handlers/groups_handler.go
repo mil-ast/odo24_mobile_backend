@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	groups_service "odo24_mobile_backend/api/services/groups"
+	"odo24_mobile_backend/api/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -22,12 +23,12 @@ func (ctrl *GroupsController) GetGroupsByCurrentUser(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 	groups, err := ctrl.service.GetGroupsByUser(userID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "GetGroupsError", "Не удалось получить группы", err)
 		return
 	}
 
 	if len(groups) == 0 {
-		c.String(http.StatusNoContent, "")
+		utils.BindNoContent(c)
 	} else {
 		c.JSON(http.StatusOK, groups)
 	}
@@ -41,7 +42,7 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
@@ -50,7 +51,7 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 	}
 	group, err := ctrl.service.Create(userID, model)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "GroupsCreateError", "Не удалось создать группу", err)
 		return
 	}
 
@@ -66,7 +67,7 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
@@ -76,11 +77,11 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 	}
 	err = ctrl.service.Update(userID, model)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "GroupsUpdateError", "Не удалось изменить группу", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
@@ -90,17 +91,17 @@ func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
 
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	err = ctrl.service.UpdateSort(userID, body)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "GroupsUpdateSortError", "Не удалось сохранить группировку групп", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *GroupsController) Delete(c *gin.Context) {
@@ -109,23 +110,23 @@ func (ctrl *GroupsController) Delete(c *gin.Context) {
 
 	err := ctrl.service.Delete(userID, groupID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "GroupsDeleteError", "Не удалось удалить группу", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *GroupsController) CheckParamGroupID(c *gin.Context) {
 	paramGroupID, ok := c.Params.Get("groupID")
 	if !ok {
-		c.AbortWithStatus(http.StatusBadRequest)
+		utils.BindBadRequestWithAbort(c, "Параметр groupID обязателен", nil)
 		return
 	}
 
 	groupID, err := strconv.ParseInt(paramGroupID, 10, 64)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindBadRequestWithAbort(c, "Ошибка парсинга группы", err)
 		return
 	}
 
@@ -133,7 +134,7 @@ func (ctrl *GroupsController) CheckParamGroupID(c *gin.Context) {
 
 	err = ctrl.service.CheckOwner(groupID, userID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
+		utils.BindErrorWithAbort(c, http.StatusForbidden, "forbidden", "Нет доступа", err)
 		return
 	}
 
