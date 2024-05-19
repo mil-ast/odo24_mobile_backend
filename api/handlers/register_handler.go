@@ -60,7 +60,7 @@ func (ctrl *RegisterController) RegisterByEmail(c *gin.Context) {
 		Code     uint16 `json:"code" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -95,7 +95,7 @@ func (ctrl *RegisterController) RecoverSendEmailCodeConfirmation(c *gin.Context)
 	var body struct {
 		Email string `json:"email" binding:"required,email"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -128,7 +128,7 @@ func (ctrl *RegisterController) RecoverPassword(c *gin.Context) {
 		Code     uint16 `json:"code" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return

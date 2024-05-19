@@ -47,7 +47,7 @@ func (ctrl *CarServicesController) Create(c *gin.Context) {
 		Description  *string `json:"description" binding:"omitempty"`
 		Price        *uint32 `json:"price" binding:"omitempty"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", nil)
 		return
@@ -81,7 +81,7 @@ func (ctrl *CarServicesController) Update(c *gin.Context) {
 		Description  *string `json:"description" binding:"omitempty"`
 		Price        *uint32 `json:"price" binding:"omitempty"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", nil)
 		return

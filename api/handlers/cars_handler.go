@@ -42,7 +42,7 @@ func (ctrl *CarsController) Create(c *gin.Context) {
 		Odo    uint32 `json:"odo" binding:"required"`
 		Avatar bool   `json:"avatar"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -70,7 +70,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 		Odo    uint32 `json:"odo" binding:"required"`
 		Avatar bool   `json:"avatar"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -97,7 +97,7 @@ func (ctrl *CarsController) UpdateODO(c *gin.Context) {
 	var body struct {
 		Odo uint32 `json:"odo" binding:"required"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return

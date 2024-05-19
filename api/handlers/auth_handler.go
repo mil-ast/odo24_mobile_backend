@@ -28,8 +28,7 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 		Email    string `json:"login" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 	}
-
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -61,7 +60,7 @@ func (ctrl *AuthController) RefreshToken(c *gin.Context) {
 	var body struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -88,7 +87,7 @@ func (ctrl *AuthController) ChangePassword(c *gin.Context) {
 		NewPassword     string `json:"new_password" binding:"required"`
 	}
 
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return

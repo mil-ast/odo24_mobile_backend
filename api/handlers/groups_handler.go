@@ -40,7 +40,7 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 	var body struct {
 		Name string `json:"name" binding:"required"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -65,7 +65,7 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 	var body struct {
 		Name string `json:"name" binding:"required"`
 	}
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
@@ -89,7 +89,7 @@ func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
 
 	var body []int64
 
-	err := c.Bind(&body)
+	err := c.ShouldBindJSON(&body)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "", err)
 		return
