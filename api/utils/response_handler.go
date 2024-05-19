@@ -18,6 +18,7 @@ func BindErrorWithAbort(c *gin.Context, statusCode int, key, message string, err
 		log.Printf("%s, err=%v", statusText, err)
 	}
 
+	c.Header("Content-Type", "application/json")
 	c.JSON(statusCode, ResponseError{
 		Key:     key,
 		Message: message,
@@ -38,6 +39,7 @@ func BindBadRequestWithAbort(c *gin.Context, message string, err error) {
 		log.Printf("%s, message=%s", statusText, message)
 	}
 
+	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusBadRequest, ResponseError{
 		Key:     "bad_request",
 		Message: errMessage,
