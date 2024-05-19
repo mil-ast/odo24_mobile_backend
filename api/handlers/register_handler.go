@@ -7,6 +7,7 @@ import (
 	"time"
 
 	register_service "odo24_mobile_backend/api/services/register"
+	"odo24_mobile_backend/api/utils"
 	"odo24_mobile_backend/config"
 
 	"github.com/bradfitz/gomemcache/memcache"
@@ -32,23 +33,23 @@ func (ctrl *RegisterController) SendEmailCodeConfirmation(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	emailAddr, err := mail.ParseAddress(body.Email)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "Некорректный Email", err)
 		return
 	}
 
 	err = ctrl.service.SendEmailCodeConfirmation(emailAddr)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "SendEmailCodeConfirmationError", "Не удалось отправить сообщение на почту", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *RegisterController) RegisterByEmail(c *gin.Context) {
@@ -61,31 +62,31 @@ func (ctrl *RegisterController) RegisterByEmail(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	emailAddr, err := mail.ParseAddress(body.Email)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "Некорректный Email", err)
 		return
 	}
 
 	err = ctrl.service.RegisterByEmail(emailAddr, body.Code, body.Password)
 	if err != nil {
 		if errors.Is(err, memcache.ErrCacheMiss) {
-			c.AbortWithError(http.StatusForbidden, err)
+			utils.BindErrorWithAbort(c, http.StatusForbidden, "ConfirmCodeError", "Неверный код подтверждения", err)
 			return
 		}
 		if errors.Is(err, register_service.ErrLoginAlreadyExists) {
-			c.AbortWithError(http.StatusConflict, err)
+			utils.BindErrorWithAbort(c, http.StatusConflict, "LoginAlreadyExists", "Такой логин уже существует", err)
 			return
 		}
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "RegisterByEmailError", "Непредвиденная ошибка регистрации", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *RegisterController) RecoverSendEmailCodeConfirmation(c *gin.Context) {
@@ -96,27 +97,27 @@ func (ctrl *RegisterController) RecoverSendEmailCodeConfirmation(c *gin.Context)
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	emailAddr, err := mail.ParseAddress(body.Email)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "Некорректный Email", err)
 		return
 	}
 
 	err = ctrl.service.PasswordRecoverySendEmailCodeConfirmation(emailAddr)
 	if err != nil {
 		if errors.Is(err, register_service.ErrCodeHasAlreadyBeenSent) {
-			c.AbortWithError(http.StatusTooManyRequests, err)
+			utils.BindErrorWithAbort(c, http.StatusTooManyRequests, "CodeHasAlreadyBeenSent", "Код подтверждения уже был отправлен", err)
 		} else {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			utils.BindServiceErrorWithAbort(c, "RecoverSendEmailCodeError", "Непредвиденная ошибка при отправке код подтверждения", err)
 		}
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *RegisterController) RecoverPassword(c *gin.Context) {
@@ -129,25 +130,25 @@ func (ctrl *RegisterController) RecoverPassword(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	emailAddr, err := mail.ParseAddress(body.Email)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "Некорректный Email", err)
 		return
 	}
 
 	err = ctrl.service.PasswordRecovery(emailAddr, body.Code, body.Password)
 	if err != nil {
 		if errors.Is(err, memcache.ErrCacheMiss) {
-			c.AbortWithError(http.StatusForbidden, err)
+			utils.BindErrorWithAbort(c, http.StatusForbidden, "ConfirmCodeError", "Неверный код подтверждения", err)
 			return
 		}
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "PasswordRecoveryError", "Непредвиденная ошибка восстановления пароля", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }

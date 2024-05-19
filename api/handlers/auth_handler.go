@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"odo24_mobile_backend/api/services"
 	auth_service "odo24_mobile_backend/api/services/auth"
+	"odo24_mobile_backend/api/utils"
 	"odo24_mobile_backend/config"
 	"strings"
 
@@ -30,18 +31,17 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	token, err := ctrl.service.Login(body.Email, body.Password)
 	if err != nil {
 		if errors.Is(err, services.ErrorUnauthorize) {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			utils.BindErrorWithAbort(c, http.StatusUnauthorized, "AuthError", "Неверный логин или пароль", nil)
 		} else {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			utils.BindServiceErrorWithAbort(c, "LoginError", "Произошла ошибка при авторизации", err)
 		}
-
 		return
 	}
 
@@ -52,7 +52,7 @@ func (ctrl *AuthController) RefreshToken(c *gin.Context) {
 	bearerToken := c.Request.Header.Get("Authorization")
 	splitToken := strings.Split(bearerToken, " ")
 	if len(splitToken) < 2 {
-		c.AbortWithStatus(http.StatusUnauthorized)
+		utils.BindErrorWithAbort(c, http.StatusUnauthorized, "RefreshTokenError", "Некорректный токен авторизации", nil)
 		return
 	}
 
@@ -63,16 +63,16 @@ func (ctrl *AuthController) RefreshToken(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	result, err := ctrl.service.RefreshToken(accessToken, body.RefreshToken)
 	if err != nil {
 		if errors.Is(err, services.ErrorUnauthorize) {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			utils.BindErrorWithAbort(c, http.StatusUnauthorized, "RefreshError", "Ошибка обновления токена. Попробуйте переавторизоваться", err)
 		} else {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			utils.BindServiceErrorWithAbort(c, "RefreshTokenError", "Ошибка обновления токена", err)
 		}
 		return
 	}
@@ -90,15 +90,15 @@ func (ctrl *AuthController) ChangePassword(c *gin.Context) {
 
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", err)
 		return
 	}
 
 	err = ctrl.service.ChangePassword(userID, body.CurrentPassword, body.NewPassword)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindServiceErrorWithAbort(c, "ChangePasswordError", "Ошибка изменения пароля", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }

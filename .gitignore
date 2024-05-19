@@ -1,5 +1,5 @@
 vendor
 secret_key.txt
 config.json
-__debug_bin
+__debug_bin*
 odo24_mobile_backend

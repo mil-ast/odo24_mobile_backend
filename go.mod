@@ -1,6 +1,6 @@
 module odo24_mobile_backend
 
-go 1.22.2
+go 1.22.3
 
 require (
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	car_services_service "odo24_mobile_backend/api/services/car_services"
+	"odo24_mobile_backend/api/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -18,19 +19,18 @@ func NewCarServicesController() *CarServicesController {
 	}
 }
 
-func (ctrl *CarServicesController) GetGroupsByCurrentUser(c *gin.Context) {
+func (ctrl *CarServicesController) GetServicesByCurrentUserAndGroup(c *gin.Context) {
 	groupID := c.MustGet("groupID").(int64)
 	carID := c.MustGet("carID").(int64)
 
 	services, err := ctrl.service.GetServices(carID, groupID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
+		utils.BindServiceErrorWithAbort(c, "GetServices", "Не удалось получить список записей", err)
 		return
 	}
 
 	if len(services) == 0 {
-		c.Status(http.StatusNoContent)
-		c.Abort()
+		utils.BindNoContent(c)
 	} else {
 		c.JSON(http.StatusOK, services)
 	}
@@ -49,7 +49,7 @@ func (ctrl *CarServicesController) Create(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", nil)
 		return
 	}
 
@@ -64,7 +64,7 @@ func (ctrl *CarServicesController) Create(c *gin.Context) {
 	}
 	carService, err := ctrl.service.Create(model)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "ServiceCreateError", "Не удалось создать запись", err)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (ctrl *CarServicesController) Update(c *gin.Context) {
 	}
 	err := c.Bind(&body)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		utils.BindBadRequestWithAbort(c, "", nil)
 		return
 	}
 
@@ -97,11 +97,11 @@ func (ctrl *CarServicesController) Update(c *gin.Context) {
 	}
 	err = ctrl.service.Update(model)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "ServiceUpdateError", "Не удалось обновить запись", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *CarServicesController) Delete(c *gin.Context) {
@@ -110,30 +110,30 @@ func (ctrl *CarServicesController) Delete(c *gin.Context) {
 
 	err := ctrl.service.Delete(userID, serviceID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		utils.BindServiceErrorWithAbort(c, "ServiceDeleteError", "Не удалось удалить запись", err)
 		return
 	}
 
-	c.String(http.StatusNoContent, "")
+	utils.BindNoContent(c)
 }
 
 func (ctrl *CarServicesController) CheckParamServiceID(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 	paramServiceID, ok := c.Params.Get("serviceID")
 	if !ok {
-		c.AbortWithStatus(http.StatusBadRequest)
+		utils.BindBadRequestWithAbort(c, "Параметр serviceID обязателен", nil)
 		return
 	}
 
 	serviceID, err := strconv.ParseInt(paramServiceID, 10, 64)
 	if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
+		utils.BindBadRequestWithAbort(c, "Ошибка парсинга serviceID", err)
 		return
 	}
 
 	err = ctrl.service.CheckOwner(userID, serviceID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusForbidden)
+		utils.BindErrorWithAbort(c, http.StatusForbidden, "forbidden", "Нет доступа", err)
 		return
 	}
 
