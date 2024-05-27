@@ -61,7 +61,14 @@ func AddEmailCodeConfirmation(email *mail.Address, code uint16) error {
 func GetEmailCodeConfirmation(email *mail.Address) (item *memcache.Item, err error) {
 	memc := getMemcachedClient()
 	cacheKey := strings.Replace(email.Address, "@", ".", -1)
-	return memc.Get(cacheKey)
+	item, err = memc.Get(cacheKey)
+	if err != nil {
+		if errors.Is(err, memcache.ErrCacheMiss) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return item, nil
 }
 
 func DeleteEmailCodeConfirmation(email *mail.Address) error {

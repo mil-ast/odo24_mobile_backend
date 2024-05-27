@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
+	"log"
 	"math/rand"
 	"net/mail"
 	"odo24_mobile_backend/api/services"
@@ -32,14 +33,17 @@ func NewRegisterService(passwordSalt string) *RegisterService {
 }
 
 func (srv *RegisterService) SendEmailCodeConfirmation(email *mail.Address) error {
-	existsCode, _ := services.GetEmailCodeConfirmation(email)
+	existsCode, err := services.GetEmailCodeConfirmation(email)
+	if err != nil {
+		return err
+	}
 	if existsCode != nil {
 		return nil
 	}
 
 	code := srv.generateConfirmationCode()
 
-	err := services.AddEmailCodeConfirmation(email, code)
+	err = services.AddEmailCodeConfirmation(email, code)
 	if err != nil {
 		return err
 	}
@@ -80,6 +84,11 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 		return err
 	}
 
+	if item == nil {
+		log.Println("RegisterByEmail GetEmailCodeConfirmation code is empty")
+		return ErrCodeDoesNotMatch
+	}
+
 	confirmCode := binary.LittleEndian.Uint16(item.Value)
 
 	if code != confirmCode {
@@ -118,6 +127,11 @@ func (srv *RegisterService) PasswordRecovery(email *mail.Address, code uint16, p
 	item, err := services.GetEmailCodeConfirmation(email)
 	if err != nil {
 		return err
+	}
+
+	if item == nil {
+		log.Println("PasswordRecovery GetEmailCodeConfirmation code is empty")
+		return ErrCodeDoesNotMatch
 	}
 
 	confirmCode := binary.LittleEndian.Uint16(item.Value)
