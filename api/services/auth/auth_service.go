@@ -2,11 +2,11 @@ package auth_service
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"database/sql"
 	"errors"
 	"fmt"
 	"odo24_mobile_backend/api/services"
+	"odo24_mobile_backend/api/utils"
 	"odo24_mobile_backend/config"
 	"odo24_mobile_backend/db"
 	"time"
@@ -39,8 +39,9 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 	var user struct {
 		UserID   int64
 		Password []byte
+		Salt     []byte
 	}
-	err := pg.QueryRow("select u.user_id,u.password_hash from profiles.users u where u.login = $1", email).Scan(&user.UserID, &user.Password)
+	err := pg.QueryRow("select u.user_id,u.password_hash,u.salt from profiles.users u where u.login=$1", email).Scan(&user.UserID, &user.Password, &user.Salt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, services.ErrorUnauthorize
@@ -52,15 +53,17 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 		return nil, services.ErrorUnauthorize
 	}
 
-	hasher := sha1.New()
-	_, err = hasher.Write([]byte(password))
+	currentPassword, err := utils.GetPasswordHash([]byte(password), user.Salt)
 	if err != nil {
 		return nil, err
 	}
 
-	sum := hasher.Sum(srv.passwordSalt)
+	userPassword, err := utils.GetPasswordHash(user.Password, user.Salt)
+	if err != nil {
+		return nil, err
+	}
 
-	if !bytes.Equal(sum, user.Password) {
+	if !bytes.Equal(currentPassword, userPassword) {
 		return nil, services.ErrorUnauthorize
 	}
 
@@ -80,30 +83,37 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 func (srv *AuthService) ChangePassword(userID int64, oldPassword, newPassword string) error {
 	pg := db.Conn()
 	var currentPassword []byte
-	err := pg.QueryRow("select u.password_hash from profiles.users u where u.user_id = $1", userID).Scan(&currentPassword)
+	var currentSalt []byte
+	err := pg.QueryRow("select u.password_hash,u.salt from profiles.users u where u.user_id=$1", userID).Scan(&currentPassword, &currentSalt)
 	if err != nil {
 		return err
 	}
 
-	hasherOldPassword := sha1.New()
-	_, err = hasherOldPassword.Write([]byte(oldPassword))
+	oldHashPassword, err := utils.GetPasswordHash([]byte(oldPassword), currentSalt)
 	if err != nil {
 		return err
 	}
-	sumOldPasswd := hasherOldPassword.Sum(srv.passwordSalt)
 
-	if !bytes.Equal(sumOldPasswd, currentPassword) {
+	currentHashPassword, err := utils.GetPasswordHash(currentPassword, currentSalt)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(oldHashPassword, currentHashPassword) {
 		return errors.New("invalid password")
 	}
 
-	hasherNewPassword := sha1.New()
-	_, err = hasherNewPassword.Write([]byte(newPassword))
+	salt, err := utils.GenerateSalt()
 	if err != nil {
 		return err
 	}
-	sumNewPasswd := hasherNewPassword.Sum(srv.passwordSalt)
 
-	_, err = pg.Exec("update profiles.users set password_hash=$1 where user_id=$2", sumNewPasswd, userID)
+	newHashPassword, err := utils.GetPasswordHash([]byte(newPassword), salt)
+	if err != nil {
+		return err
+	}
+
+	_, err = pg.Exec("update profiles.users set password_hash=$1 where user_id=$2", newHashPassword, userID)
 	if err != nil {
 		return err
 	}
