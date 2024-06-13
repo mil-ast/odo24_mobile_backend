@@ -1,7 +1,6 @@
 package api
 
 import (
-	"odo24_mobile_backend/api/binding"
 	"odo24_mobile_backend/api/handlers"
 
 	"github.com/gin-gonic/gin"
@@ -22,14 +21,15 @@ func InitHandlers() *gin.Engine {
 
 	//auth
 	authCtrl := handlers.NewAuthController()
+
 	apiAuth := r.Group("/api/auth")
 	apiAuth.POST("/login", authCtrl.Login)
 	apiAuth.POST("/refresh_token", authCtrl.RefreshToken)
-	apiAuth.POST("/change_password", binding.Auth, authCtrl.ChangePassword)
+	apiAuth.POST("/change_password", authCtrl.CheckAuth, authCtrl.ChangePassword)
 
 	//cars
 	carsCtrl := handlers.NewCarsController()
-	apiCars := r.Group("/api/cars", binding.Auth)
+	apiCars := r.Group("/api/cars", authCtrl.CheckAuth)
 	apiCars.GET("", carsCtrl.GetCarsByCurrentUser)
 	apiCars.POST("", carsCtrl.Create)
 
@@ -40,7 +40,7 @@ func InitHandlers() *gin.Engine {
 
 	//groups
 	groupsCtrl := handlers.NewGroupsController()
-	apiGroups := r.Group("/api/groups", binding.Auth)
+	apiGroups := r.Group("/api/groups", authCtrl.CheckAuth)
 	apiGroups.GET("", groupsCtrl.GetGroupsByCurrentUser)
 	apiGroups.POST("", groupsCtrl.Create)
 	apiGroups.POST("/update_sort", groupsCtrl.UpdateSort)
@@ -53,7 +53,7 @@ func InitHandlers() *gin.Engine {
 	carServicesCtrl := handlers.NewCarServicesController()
 	apiServiceCtrl.GET("", carServicesCtrl.GetServicesByCurrentUserAndGroup)
 	apiServiceCtrl.POST("", carServicesCtrl.Create)
-	apiServiceCtrlID := r.Group("/api/services/:serviceID", binding.Auth, carServicesCtrl.CheckParamServiceID)
+	apiServiceCtrlID := r.Group("/api/services/:serviceID", authCtrl.CheckAuth, carServicesCtrl.CheckParamServiceID)
 	apiServiceCtrlID.PUT("", carServicesCtrl.Update)
 	apiServiceCtrlID.DELETE("", carServicesCtrl.Delete)
 

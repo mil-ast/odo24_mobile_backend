@@ -2,9 +2,10 @@
 	"app" : {
 		"server_addr" : "0.0.0.0:8000",
 		"imageMagick" : "convert",
-		"jwt_access_secret": "jwt_access_secret",
-		"jwt_refresh_secret": "jwt_refresh_secret",
-		"password_salt": "salt"
+		"jwt_access_private_key_path": "access.key",
+		"jwt_access_public_key_path": "access.pem",
+		"jwt_refresh_private_key_path": "refresh.key",
+		"jwt_refresh_public_key_path": "refresh.pem"
 	},
 	"smtp" : {
 		"host" : "smtp.yandex.ru",

@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"odo24_mobile_backend/api/services"
 	"odo24_mobile_backend/api/utils"
-	"odo24_mobile_backend/config"
 	"odo24_mobile_backend/db"
+	"os"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
@@ -16,21 +17,42 @@ import (
 )
 
 const (
-	defaultAccessTokenExp  = time.Minute * 5 // TODO
-	defaultRefreshTokenExp = 24 * 30 * 6 * time.Hour
+	defaultAccessTokenExp  = time.Minute * 20
+	defaultRefreshTokenExp = time.Hour * 24 * 30 * 6
 )
 
 type AuthService struct {
-	jwtTokenSecret   string
-	jwtRefreshSecret string
-	passwordSalt     []byte
+	jwtAccessPrivateKey  []byte
+	jwtAccessPublicKey   []byte
+	jwtRefreshPrivateKey []byte
+	jwtRefreshPublicKey  []byte
 }
 
-func NewAuthService(jwtTokenSecret, jwtRefreshSecret, passwordSalt string) *AuthService {
+func NewAuthService(jwtAccessPrivateKeyPath, jwtAccessPublicKeyPath, jwtRefreshPrivateKeyPath, jwtRefreshPublicKeyPath string) *AuthService {
+	// jwt access
+	accessPrivateKey, err := os.ReadFile(jwtAccessPrivateKeyPath)
+	if err != nil {
+		panic(err)
+	}
+	accessPublicKey, err := os.ReadFile(jwtAccessPublicKeyPath)
+	if err != nil {
+		panic(err)
+	}
+	// jwt refresh
+	refreshPrivateKey, err := os.ReadFile(jwtRefreshPrivateKeyPath)
+	if err != nil {
+		panic(err)
+	}
+	refreshPublicKey, err := os.ReadFile(jwtRefreshPublicKeyPath)
+	if err != nil {
+		panic(err)
+	}
+
 	return &AuthService{
-		jwtTokenSecret:   jwtTokenSecret,
-		jwtRefreshSecret: jwtRefreshSecret,
-		passwordSalt:     []byte(passwordSalt),
+		jwtAccessPrivateKey:  accessPrivateKey,
+		jwtAccessPublicKey:   accessPublicKey,
+		jwtRefreshPrivateKey: refreshPrivateKey,
+		jwtRefreshPublicKey:  refreshPublicKey,
 	}
 }
 
@@ -58,12 +80,7 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 		return nil, err
 	}
 
-	userPassword, err := utils.GetPasswordHash(user.Password, user.Salt)
-	if err != nil {
-		return nil, err
-	}
-
-	if !bytes.Equal(currentPassword, userPassword) {
+	if !bytes.Equal(currentPassword, user.Password) {
 		return nil, services.ErrorUnauthorize
 	}
 
@@ -113,7 +130,12 @@ func (srv *AuthService) ChangePassword(userID int64, oldPassword, newPassword st
 		return err
 	}
 
-	_, err = pg.Exec("update profiles.users set password_hash=$1 where user_id=$2", newHashPassword, userID)
+	newSalt, err := utils.GenerateSalt()
+	if err != nil {
+		return err
+	}
+
+	_, err = pg.Exec("update profiles.users set password_hash=$1,salt=$2 where user_id=$3", newHashPassword, newSalt, userID)
 	if err != nil {
 		return err
 	}
@@ -125,13 +147,16 @@ func (srv *AuthService) ChangePassword(userID int64, oldPassword, newPassword st
 RefreshToken рефреш токена
 */
 func (srv *AuthService) RefreshToken(accessTokenStr, refreshTokenStr string) (*AuthResultModel, error) {
-	accessToken, err := getToken(accessTokenStr, []byte(srv.jwtTokenSecret), jwt.WithoutClaimsValidation())
+	accessToken, err := srv.ParseAccessToken(accessTokenStr, jwt.WithoutClaimsValidation())
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := getToken(refreshTokenStr, []byte(srv.jwtRefreshSecret), jwt.WithoutClaimsValidation())
+	refreshToken, err := srv.ParseRefreshToken(refreshTokenStr)
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, services.ErrorUnauthorize
+		}
 		return nil, err
 	}
 
@@ -148,14 +173,8 @@ func (srv *AuthService) RefreshToken(accessTokenStr, refreshTokenStr string) (*A
 	accessUUID := accessClaims["uuid"].(string)
 	refreshUUID := refreshClaims["uuid"].(string)
 	if accessUUID != refreshUUID {
+		log.Printf("accessUUID=%s, refreshUUID=%s", accessUUID, refreshUUID)
 		return nil, errors.New("accessUUID not equal refreshUUID")
-	}
-
-	// проверка, что рефреш токен не протух
-	refreshTokenExp := int64(refreshClaims["exp"].(float64))
-	nowTime := time.Now().Unix()
-	if nowTime > refreshTokenExp {
-		return nil, services.ErrorUnauthorize
 	}
 
 	userID := int64(accessClaims["uid"].(float64))
@@ -177,81 +196,79 @@ func (srv *AuthService) RefreshToken(accessTokenStr, refreshTokenStr string) (*A
 	}
 
 	_, err = pg.Exec("update profiles.users set token_uuid=$1 where user_id=$2", tokenUUID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	return tokens, nil
+	return tokens, err
 }
 
-func ValidateAccessToken(tokenStr string) (*jwt.MapClaims, error) {
-	cfg := config.GetInstance().App
-	token, err := getToken(tokenStr, []byte(cfg.JwtAccessSecret))
-	if err != nil {
-		return nil, err
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, errors.New("suspicious token")
-	}
-
-	tokenExp := int64(claims["exp"].(float64))
-
-	nowTime := time.Now().Unix()
-	if nowTime > tokenExp {
-		return nil, errors.New("you're unauthorized")
-	}
-
-	return &claims, nil
+func (srv *AuthService) ParseAccessToken(tokenString string, options ...jwt.ParserOption) (*jwt.Token, error) {
+	return srv.parseToken(tokenString, srv.jwtAccessPublicKey, options...)
 }
 
-func getToken(tokenStr string, secret []byte, options ...jwt.ParserOption) (*jwt.Token, error) {
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+func (srv *AuthService) ParseRefreshToken(tokenString string, options ...jwt.ParserOption) (*jwt.Token, error) {
+	return srv.parseToken(tokenString, srv.jwtRefreshPublicKey, options...)
+}
+
+func (srv *AuthService) parseToken(tokenString string, pubKey []byte, options ...jwt.ParserOption) (*jwt.Token, error) {
+	key, err := jwt.ParseRSAPublicKeyFromPEM(pubKey)
+	if err != nil {
+		log.Printf("error parsing RSA public key: %v\n", err)
+		return nil, services.ErrorParsingRSAPublicKey
+	}
+
+	parsedToken, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return secret, nil
+		return key, nil
 	}, options...)
-	if err != nil {
-		return nil, err
-	}
-
-	if !token.Valid {
-		return nil, errors.New("incorrect token")
-	}
-	return token, nil
+	return parsedToken, err
 }
 
 func (srv *AuthService) tokenGenerate(userID int64) (*AuthResultModel, string, error) {
 	tokenUUID := uuid.New().String()
 
-	token := jwt.New(jwt.SigningMethodHS256)
-	accessTokenExp := time.Now().Add(defaultAccessTokenExp).Unix()
-	claims := token.Claims.(jwt.MapClaims)
-	claims["exp"] = accessTokenExp
-	claims["uid"] = userID
-	claims["uuid"] = tokenUUID
-
-	tokenString, err := token.SignedString([]byte(srv.jwtTokenSecret))
+	// access
+	accessKey, err := jwt.ParseRSAPrivateKeyFromPEM(srv.jwtAccessPrivateKey)
 	if err != nil {
-		return nil, "", err
+		log.Printf("error parsing RSA private key: %v\n", err)
+		return nil, "", services.ErrorParsingRSAPrivateKey
 	}
 
-	refreshToken := jwt.New(jwt.SigningMethodHS256)
+	accessToken := jwt.New(jwt.SigningMethodRS256)
+
+	accessTokenExp := time.Now().Add(defaultAccessTokenExp).Unix()
+	accessClaims := accessToken.Claims.(jwt.MapClaims)
+	accessClaims["exp"] = accessTokenExp
+	accessClaims["uid"] = userID
+	accessClaims["uuid"] = tokenUUID
+
+	accessTokenString, err := accessToken.SignedString(accessKey)
+	if err != nil {
+		log.Printf("error signing token: %v\n", err)
+		return nil, tokenUUID, services.ErrorSigningJwtToken
+	}
+
+	// refresh
+	refreshKey, err := jwt.ParseRSAPrivateKeyFromPEM(srv.jwtRefreshPrivateKey)
+	if err != nil {
+		log.Printf("error parsing RSA private key: %v\n", err)
+		return nil, "", services.ErrorParsingRSAPrivateKey
+	}
+
+	refreshToken := jwt.New(jwt.SigningMethodRS256)
+
 	refreshTokenExp := time.Now().Add(defaultRefreshTokenExp).Unix()
 	refreshClaims := refreshToken.Claims.(jwt.MapClaims)
 	refreshClaims["exp"] = refreshTokenExp
-	refreshClaims["uid"] = userID
 	refreshClaims["uuid"] = tokenUUID
 
-	refreshTokenString, err := refreshToken.SignedString([]byte(srv.jwtRefreshSecret))
+	refreshTokenString, err := refreshToken.SignedString(refreshKey)
 	if err != nil {
-		return nil, tokenUUID, err
+		log.Printf("error signing token: %v\n", err)
+		return nil, tokenUUID, services.ErrorSigningJwtToken
 	}
 
 	result := AuthResultModel{
-		AccessToken:  tokenString,
+		AccessToken:  accessTokenString,
 		RefreshToken: refreshTokenString,
 	}
 	return &result, tokenUUID, nil

@@ -18,11 +18,12 @@ type Oauth struct {
 // Configuration структура конфига
 type Configuration struct {
 	App struct {
-		ServerAddr       string `json:"server_addr"`
-		ImageMagick      string `json:"imageMagick"`
-		JwtAccessSecret  string `json:"jwt_access_secret"`
-		JwtRefreshSecret string `json:"jwt_refresh_secret"`
-		PasswordSalt     string `json:"password_salt"`
+		ServerAddr               string `json:"server_addr"`
+		ImageMagick              string `json:"imageMagick"`
+		JwtAccessPrivateKeyPath  string `json:"jwt_access_private_key_path"`
+		JwtAccessPublicKeyPath   string `json:"jwt_access_public_key_path"`
+		JwtRefreshPrivateKeyPath string `json:"jwt_refresh_private_key_path"`
+		JwtRefreshPublicKeyPath  string `json:"jwt_refresh_public_key_path"`
 	} `json:"app"`
 	SMTP struct {
 		Host     string `json:"host"`

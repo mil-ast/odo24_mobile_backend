@@ -23,7 +23,7 @@ type RegisterService struct {
 	rnd *rand.Rand
 }
 
-func NewRegisterService(passwordSalt string) *RegisterService {
+func NewRegisterService() *RegisterService {
 	src := rand.NewSource(time.Now().UnixNano())
 	return &RegisterService{
 		rnd: rand.New(src),

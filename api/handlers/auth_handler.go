@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"odo24_mobile_backend/api/services"
 	auth_service "odo24_mobile_backend/api/services/auth"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthController struct {
@@ -19,8 +21,39 @@ type AuthController struct {
 func NewAuthController() *AuthController {
 	cfg := config.GetInstance().App
 	return &AuthController{
-		service: auth_service.NewAuthService(cfg.JwtAccessSecret, cfg.JwtRefreshSecret, cfg.PasswordSalt),
+		service: auth_service.NewAuthService(cfg.JwtAccessPrivateKeyPath, cfg.JwtAccessPublicKeyPath, cfg.JwtRefreshPrivateKeyPath, cfg.JwtRefreshPublicKeyPath),
 	}
+}
+
+// проверка авторизации в апи
+func (ctrl *AuthController) CheckAuth(c *gin.Context) {
+	bearerToken := c.Request.Header.Get("Authorization")
+
+	splitToken := strings.Split(bearerToken, " ")
+	if len(splitToken) < 2 {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	token, err := ctrl.service.ParseAccessToken(splitToken[1])
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			log.Println("check token error: ErrTokenExpired")
+		} else {
+			log.Printf("check token error: %v\n", err)
+		}
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		log.Println("check token error: Claims is empty")
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	c.Set("userID", int64(claims["uid"].(float64)))
+	c.Next()
 }
 
 func (ctrl *AuthController) Login(c *gin.Context) {

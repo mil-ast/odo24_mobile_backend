@@ -37,9 +37,6 @@ func main() {
 	}
 	fmt.Println("OK!")
 
-	// ключ шифрования сессии
-	//sessions.SetSecretKey(options.App.SessionKey)
-
 	sendmail.InitSendmail()
 
 	// инициализация API методов
