@@ -8,7 +8,6 @@ import (
 
 	register_service "odo24_mobile_backend/api/services/register"
 	"odo24_mobile_backend/api/utils"
-	"odo24_mobile_backend/config"
 
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/gin-gonic/gin"
@@ -19,9 +18,8 @@ type RegisterController struct {
 }
 
 func NewRegisterController() *RegisterController {
-	cfg := config.GetInstance().App
 	return &RegisterController{
-		service: register_service.NewRegisterService(cfg.PasswordSalt),
+		service: register_service.NewRegisterService(),
 	}
 }
 

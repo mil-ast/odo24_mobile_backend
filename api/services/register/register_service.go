@@ -1,13 +1,13 @@
 package register_service
 
 import (
-	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"log"
 	"math/rand"
 	"net/mail"
 	"odo24_mobile_backend/api/services"
+	"odo24_mobile_backend/api/utils"
 	"odo24_mobile_backend/db"
 	"odo24_mobile_backend/sendmail"
 	"time"
@@ -20,15 +20,13 @@ var (
 )
 
 type RegisterService struct {
-	rnd          *rand.Rand
-	passwordSalt []byte
+	rnd *rand.Rand
 }
 
-func NewRegisterService(passwordSalt string) *RegisterService {
+func NewRegisterService() *RegisterService {
 	src := rand.NewSource(time.Now().UnixNano())
 	return &RegisterService{
-		rnd:          rand.New(src),
-		passwordSalt: []byte(passwordSalt),
+		rnd: rand.New(src),
 	}
 }
 
@@ -38,6 +36,7 @@ func (srv *RegisterService) SendEmailCodeConfirmation(email *mail.Address) error
 		return err
 	}
 	if existsCode != nil {
+		log.Printf("SendEmailCodeConfirmation code is exists")
 		return nil
 	}
 
@@ -95,8 +94,12 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 		return ErrCodeDoesNotMatch
 	}
 
-	hasherNewPassword := sha1.New()
-	_, err = hasherNewPassword.Write([]byte(password))
+	salt, err := utils.GenerateSalt()
+	if err != nil {
+		return err
+	}
+
+	newPassword, err := utils.GetPasswordHash([]byte(password), salt)
 	if err != nil {
 		return err
 	}
@@ -112,9 +115,8 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 		return ErrLoginAlreadyExists
 	}
 
-	sumNewPasswd := hasherNewPassword.Sum(srv.passwordSalt)
 	var userID int64
-	err = pg.QueryRow(`INSERT INTO profiles.users (login,password_hash,oauth,last_login_dt) VALUES($1,$2,$3,now()::timestamp without time zone) RETURNING user_id`, email.Address, sumNewPasswd, false).Scan(&userID)
+	err = pg.QueryRow(`INSERT INTO profiles.users (login,password_hash,oauth,last_login_dt,salt) VALUES($1,$2,$3,now()::timestamp without time zone,$4) RETURNING user_id`, email.Address, newPassword, false, salt).Scan(&userID)
 	if err != nil {
 		return err
 	}
@@ -140,15 +142,18 @@ func (srv *RegisterService) PasswordRecovery(email *mail.Address, code uint16, p
 		return ErrCodeDoesNotMatch
 	}
 
-	hasherNewPassword := sha1.New()
-	_, err = hasherNewPassword.Write([]byte(password))
+	salt, err := utils.GenerateSalt()
 	if err != nil {
 		return err
 	}
-	sumNewPasswd := hasherNewPassword.Sum(srv.passwordSalt)
+
+	newPassword, err := utils.GetPasswordHash([]byte(password), salt)
+	if err != nil {
+		return err
+	}
 
 	pg := db.Conn()
-	_, err = pg.Exec("UPDATE profiles.users SET password_hash=$1 WHERE login=$2;", sumNewPasswd, email.Address)
+	_, err = pg.Exec("UPDATE profiles.users SET password_hash=$1,salt=$2 WHERE login=$3;", newPassword, salt, email.Address)
 	if err != nil {
 		return err
 	}
