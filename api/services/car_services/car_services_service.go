@@ -11,7 +11,7 @@ func NewCarServicesService() *CarServicesService {
 	return &CarServicesService{}
 }
 
-func (srv *CarServicesService) GetServices(carID, groupID int64) ([]CarServiceModel, error) {
+func (srv *CarServicesService) GetServices(carID, groupID uint64) ([]CarServiceModel, error) {
 	pg := db.Conn()
 
 	rows, err := pg.Query(`SELECT s.service_id,s.odo,s.next_distance,s.dt,s.description,s.price FROM service_book.services s WHERE s.car_id=$1 AND s.group_id=$2`, carID, groupID)
@@ -39,7 +39,7 @@ func (srv *CarServicesService) GetServices(carID, groupID int64) ([]CarServiceMo
 func (srv *CarServicesService) Create(body CarServiceCreateModel) (*CarServiceModel, error) {
 	pg := db.Conn()
 
-	var carServiceID int64
+	var carServiceID uint64
 	err := pg.QueryRow(`INSERT INTO service_book.services (car_id,group_id,odo,next_distance,dt,description,price) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING service_id`, body.CarID, body.GroupID, body.Odo, body.NextDistance, body.Dt, body.Description, body.Price).Scan(&carServiceID)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (srv *CarServicesService) Update(body CarServiceUpdateModel) error {
 	return nil
 }
 
-func (srv *CarServicesService) Delete(userID uint64, serviceID int64) error {
+func (srv *CarServicesService) Delete(userID uint64, serviceID uint64) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`DELETE FROM service_book.services WHERE service_id=$1`, serviceID)

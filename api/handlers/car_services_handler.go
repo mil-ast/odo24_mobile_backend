@@ -20,8 +20,8 @@ func NewCarServicesController(srv *car_services_service.CarServicesService) *Car
 }
 
 func (ctrl *CarServicesController) GetServicesByCurrentUserAndGroup(c *gin.Context) {
-	groupID := c.MustGet("groupID").(int64)
-	carID := c.MustGet("carID").(int64)
+	groupID := c.MustGet("groupID").(uint64)
+	carID := c.MustGet("carID").(uint64)
 
 	services, err := ctrl.service.GetServices(carID, groupID)
 	if err != nil {
@@ -37,8 +37,8 @@ func (ctrl *CarServicesController) GetServicesByCurrentUserAndGroup(c *gin.Conte
 }
 
 func (ctrl *CarServicesController) Create(c *gin.Context) {
-	groupID := c.MustGet("groupID").(int64)
-	carID := c.MustGet("carID").(int64)
+	groupID := c.MustGet("groupID").(uint64)
+	carID := c.MustGet("carID").(uint64)
 
 	var body struct {
 		Odo          *uint32 `json:"odo" binding:"omitempty"`
@@ -72,7 +72,7 @@ func (ctrl *CarServicesController) Create(c *gin.Context) {
 }
 
 func (ctrl *CarServicesController) Update(c *gin.Context) {
-	serviceID := c.MustGet("serviceID").(int64)
+	serviceID := c.MustGet("serviceID").(uint64)
 
 	var body struct {
 		Odo          *uint32 `json:"odo" binding:"omitempty"`
@@ -106,7 +106,7 @@ func (ctrl *CarServicesController) Update(c *gin.Context) {
 
 func (ctrl *CarServicesController) Delete(c *gin.Context) {
 	userID := c.MustGet("userID").(uint64)
-	serviceID := c.MustGet("serviceID").(int64)
+	serviceID := c.MustGet("serviceID").(uint64)
 
 	err := ctrl.service.Delete(userID, serviceID)
 	if err != nil {

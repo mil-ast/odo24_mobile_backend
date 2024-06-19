@@ -112,7 +112,7 @@ func (srv *GroupsService) UpdateSort(userID uint64, groupIDs []int64) error {
 	return err
 }
 
-func (srv *GroupsService) Delete(userID uint64, groupID int64) error {
+func (srv *GroupsService) Delete(userID uint64, groupID uint64) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`DELETE FROM service_book.service_groups WHERE group_id=$1`, groupID)

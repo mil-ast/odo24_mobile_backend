@@ -106,7 +106,7 @@ func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
 
 func (ctrl *GroupsController) Delete(c *gin.Context) {
 	userID := c.MustGet("userID").(uint64)
-	groupID := c.MustGet("groupID").(int64)
+	groupID := c.MustGet("groupID").(uint64)
 
 	err := ctrl.service.Delete(userID, groupID)
 	if err != nil {

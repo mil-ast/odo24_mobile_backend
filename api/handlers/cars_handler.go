@@ -87,14 +87,16 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 							GroupName: groupName,
 						})
 					}
+				}
 
-					for i := range cars {
-						if data, ok := extInfo[cars[i].CarID]; ok {
-							for d := range data {
-								next := data[d].Odo + data[d].NextOdo
-								if next > cars[i].Odo {
-									cars[i].CarExtData = append(cars[i].CarExtData, data[d])
-								}
+				for i := range cars {
+					println(i)
+					data, ok := extInfo[cars[i].CarID]
+					if ok {
+						for d := range data {
+							next := data[d].Odo + data[d].NextOdo
+							if next > cars[i].Odo {
+								cars[i].CarExtData = append(cars[i].CarExtData, data[d])
 							}
 						}
 					}
@@ -102,6 +104,7 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 			}
 		}
 	}
+
 	c.JSON(http.StatusOK, cars)
 }
 
@@ -163,7 +166,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 }
 
 func (ctrl *CarsController) UpdateODO(c *gin.Context) {
-	carID := c.MustGet("carID").(int64)
+	carID := c.MustGet("carID").(uint64)
 
 	var body struct {
 		Odo uint32 `json:"odo" binding:"required"`
@@ -184,7 +187,7 @@ func (ctrl *CarsController) UpdateODO(c *gin.Context) {
 }
 
 func (ctrl *CarsController) Delete(c *gin.Context) {
-	carID := c.MustGet("carID").(int64)
+	carID := c.MustGet("carID").(uint64)
 
 	err := ctrl.service.Delete(carID)
 	if err != nil {
