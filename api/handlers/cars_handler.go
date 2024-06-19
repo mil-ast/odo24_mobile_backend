@@ -90,7 +90,6 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 				}
 
 				for i := range cars {
-					println(i)
 					data, ok := extInfo[cars[i].CarID]
 					if ok {
 						for d := range data {
