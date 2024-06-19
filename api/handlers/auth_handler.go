@@ -52,7 +52,7 @@ func (ctrl *AuthController) CheckAuth(c *gin.Context) {
 		return
 	}
 
-	c.Set("userID", int64(claims["uid"].(float64)))
+	c.Set("userID", uint64(claims["uid"].(float64)))
 	c.Next()
 }
 
@@ -113,7 +113,7 @@ func (ctrl *AuthController) RefreshToken(c *gin.Context) {
 }
 
 func (ctrl *AuthController) ChangePassword(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 
 	var body struct {
 		CurrentPassword string `json:"current_password" binding:"required"`

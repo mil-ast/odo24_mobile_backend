@@ -13,9 +13,9 @@ type CarServicesController struct {
 	service *car_services_service.CarServicesService
 }
 
-func NewCarServicesController() *CarServicesController {
+func NewCarServicesController(srv *car_services_service.CarServicesService) *CarServicesController {
 	return &CarServicesController{
-		service: car_services_service.NewCarServicesService(),
+		service: srv,
 	}
 }
 
@@ -105,7 +105,7 @@ func (ctrl *CarServicesController) Update(c *gin.Context) {
 }
 
 func (ctrl *CarServicesController) Delete(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 	serviceID := c.MustGet("serviceID").(int64)
 
 	err := ctrl.service.Delete(userID, serviceID)
@@ -118,14 +118,14 @@ func (ctrl *CarServicesController) Delete(c *gin.Context) {
 }
 
 func (ctrl *CarServicesController) CheckParamServiceID(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 	paramServiceID, ok := c.Params.Get("serviceID")
 	if !ok {
 		utils.BindBadRequestWithAbort(c, "Параметр serviceID обязателен", nil)
 		return
 	}
 
-	serviceID, err := strconv.ParseInt(paramServiceID, 10, 64)
+	serviceID, err := strconv.ParseUint(paramServiceID, 10, 64)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "Ошибка парсинга serviceID", err)
 		return
