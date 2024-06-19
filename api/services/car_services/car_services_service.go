@@ -66,7 +66,7 @@ func (srv *CarServicesService) Update(body CarServiceUpdateModel) error {
 	return nil
 }
 
-func (srv *CarServicesService) Delete(userID int64, serviceID int64) error {
+func (srv *CarServicesService) Delete(userID uint64, serviceID int64) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`DELETE FROM service_book.services WHERE service_id=$1`, serviceID)
@@ -77,9 +77,9 @@ func (srv *CarServicesService) Delete(userID int64, serviceID int64) error {
 	return nil
 }
 
-func (srv *CarServicesService) CheckOwner(userID, serviceID int64) error {
+func (srv *CarServicesService) CheckOwner(userID, serviceID uint64) error {
 	pg := db.Conn()
-	var dbUserID int64
+	var dbUserID uint64
 	pg.QueryRow("SELECT c.user_id FROM service_book.services s INNER JOIN service_book.car c ON c.car_id=s.car_id WHERE s.service_id=$1;", serviceID).Scan(&dbUserID)
 	if dbUserID != userID {
 		return services.ErrorNoPermission

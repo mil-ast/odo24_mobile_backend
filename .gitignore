@@ -3,4 +3,5 @@ secret_key.txt
 config.json
 __debug_bin*
 .jwt_keys
+ansible
 odo24_mobile_backend

@@ -1,7 +1,7 @@
 package groups_service
 
 type GroupModel struct {
-	GroupID int64  `json:"group_id"`
+	GroupID uint64 `json:"group_id"`
 	Name    string `json:"name"`
 	Sort    uint32 `json:"sort"`
 }

@@ -59,7 +59,7 @@ func NewAuthService(jwtAccessPrivateKeyPath, jwtAccessPublicKeyPath, jwtRefreshP
 func (srv *AuthService) Login(email string, password string) (*AuthResultModel, error) {
 	pg := db.Conn()
 	var user struct {
-		UserID   int64
+		UserID   uint64
 		Password []byte
 		Salt     []byte
 	}
@@ -97,7 +97,7 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 	return tokens, nil
 }
 
-func (srv *AuthService) ChangePassword(userID int64, oldPassword, newPassword string) error {
+func (srv *AuthService) ChangePassword(userID uint64, oldPassword, newPassword string) error {
 	pg := db.Conn()
 	var currentPassword []byte
 	var currentSalt []byte
@@ -177,7 +177,7 @@ func (srv *AuthService) RefreshToken(accessTokenStr, refreshTokenStr string) (*A
 		return nil, errors.New("accessUUID not equal refreshUUID")
 	}
 
-	userID := int64(accessClaims["uid"].(float64))
+	userID := uint64(accessClaims["uid"].(float64))
 
 	pg := db.Conn()
 	var dbRefreshUUID string
@@ -223,7 +223,7 @@ func (srv *AuthService) parseToken(tokenString string, pubKey []byte, options ..
 	return parsedToken, err
 }
 
-func (srv *AuthService) tokenGenerate(userID int64) (*AuthResultModel, string, error) {
+func (srv *AuthService) tokenGenerate(userID uint64) (*AuthResultModel, string, error) {
 	tokenUUID := uuid.New().String()
 
 	// access

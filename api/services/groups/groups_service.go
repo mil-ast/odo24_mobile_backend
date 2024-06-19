@@ -5,6 +5,8 @@ import (
 	"odo24_mobile_backend/api/services"
 	"odo24_mobile_backend/db"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
 type GroupsService struct{}
@@ -13,7 +15,7 @@ func NewGroupsService() *GroupsService {
 	return &GroupsService{}
 }
 
-func (srv *GroupsService) GetGroupsByUser(userID int64) ([]GroupModel, error) {
+func (srv *GroupsService) GetGroupsByUser(userID uint64) ([]GroupModel, error) {
 	pg := db.Conn()
 
 	rows, err := pg.Query(`SELECT g.group_id,g."name",g.sort FROM service_book.service_groups g WHERE g.user_id=$1`, userID)
@@ -37,7 +39,33 @@ func (srv *GroupsService) GetGroupsByUser(userID int64) ([]GroupModel, error) {
 	return groups, nil
 }
 
-func (srv *GroupsService) Create(userID int64, groupBody GroupCreateModel) (*GroupModel, error) {
+func (srv *GroupsService) GetGroupsByIDs(groupIDs []uint64) ([]GroupModel, error) {
+	if len(groupIDs) == 0 {
+		return []GroupModel{}, nil
+	}
+
+	pg := db.Conn()
+	rows, err := pg.Query(`SELECT g.group_id,g."name",g.sort FROM service_book.service_groups g WHERE g.group_id=ANY($1)`, pq.Array(groupIDs))
+	if err != nil {
+		return []GroupModel{}, err
+	}
+
+	defer rows.Close()
+
+	var groups []GroupModel
+	for rows.Next() {
+		var group GroupModel
+		err := rows.Scan(&group.GroupID, &group.Name, &group.Sort)
+		if err != nil {
+			return []GroupModel{}, err
+		}
+		groups = append(groups, group)
+	}
+
+	return groups, nil
+}
+
+func (srv *GroupsService) Create(userID uint64, groupBody GroupCreateModel) (*GroupModel, error) {
 	pg := db.Conn()
 
 	var sort uint32 = 0
@@ -47,7 +75,7 @@ func (srv *GroupsService) Create(userID int64, groupBody GroupCreateModel) (*Gro
 		sort += 1
 	}
 
-	var groupID int64
+	var groupID uint64
 	err := pg.QueryRow(`INSERT INTO service_book.service_groups (user_id,"name",sort) VALUES ($1,$2,$3) RETURNING group_id`, userID, groupBody.Name, sort).Scan(&groupID)
 	if err != nil {
 		return nil, err
@@ -60,7 +88,7 @@ func (srv *GroupsService) Create(userID int64, groupBody GroupCreateModel) (*Gro
 	}, nil
 }
 
-func (srv *GroupsService) Update(userID int64, groupBody GroupModel) error {
+func (srv *GroupsService) Update(userID uint64, groupBody GroupModel) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`UPDATE service_book.service_groups SET "name"=$1 WHERE group_id=$2`, groupBody.Name, groupBody.GroupID)
@@ -71,7 +99,7 @@ func (srv *GroupsService) Update(userID int64, groupBody GroupModel) error {
 	return nil
 }
 
-func (srv *GroupsService) UpdateSort(userID int64, groupIDs []int64) error {
+func (srv *GroupsService) UpdateSort(userID uint64, groupIDs []int64) error {
 	pg := db.Conn()
 
 	sortedIDs := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(groupIDs)), ","), "[]")
@@ -84,7 +112,7 @@ func (srv *GroupsService) UpdateSort(userID int64, groupIDs []int64) error {
 	return err
 }
 
-func (srv *GroupsService) Delete(userID int64, groupID int64) error {
+func (srv *GroupsService) Delete(userID uint64, groupID int64) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`DELETE FROM service_book.service_groups WHERE group_id=$1`, groupID)
@@ -95,9 +123,9 @@ func (srv *GroupsService) Delete(userID int64, groupID int64) error {
 	return nil
 }
 
-func (srv *GroupsService) CheckOwner(groupID, userID int64) error {
+func (srv *GroupsService) CheckOwner(groupID, userID uint64) error {
 	pg := db.Conn()
-	var dbUserID int64
+	var dbUserID uint64
 	pg.QueryRow("SELECT user_id FROM service_book.service_groups c WHERE group_id=$1", groupID).Scan(&dbUserID)
 	if dbUserID != userID {
 		return services.ErrorNoPermission

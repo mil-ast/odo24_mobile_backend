@@ -2,6 +2,9 @@ package api
 
 import (
 	"odo24_mobile_backend/api/handlers"
+	car_services_service "odo24_mobile_backend/api/services/car_services"
+	cars_service "odo24_mobile_backend/api/services/cars"
+	groups_service "odo24_mobile_backend/api/services/groups"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,6 +13,10 @@ func InitHandlers() *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/api/ping", handlers.Ping)
+
+	carsSrv := cars_service.NewCarsService()
+	groupsSrv := groups_service.NewGroupsService()
+	carServicesSrv := car_services_service.NewCarServicesService()
 
 	//register
 	registerCtrl := handlers.NewRegisterController()
@@ -28,7 +35,7 @@ func InitHandlers() *gin.Engine {
 	apiAuth.POST("/change_password", authCtrl.CheckAuth, authCtrl.ChangePassword)
 
 	//cars
-	carsCtrl := handlers.NewCarsController()
+	carsCtrl := handlers.NewCarsController(carsSrv, groupsSrv)
 	apiCars := r.Group("/api/cars", authCtrl.CheckAuth)
 	apiCars.GET("", carsCtrl.GetCarsByCurrentUser)
 	apiCars.POST("", carsCtrl.Create)
@@ -39,7 +46,8 @@ func InitHandlers() *gin.Engine {
 	apiCarsID.DELETE("", carsCtrl.Delete)
 
 	//groups
-	groupsCtrl := handlers.NewGroupsController()
+
+	groupsCtrl := handlers.NewGroupsController(groupsSrv)
 	apiGroups := r.Group("/api/groups", authCtrl.CheckAuth)
 	apiGroups.GET("", groupsCtrl.GetGroupsByCurrentUser)
 	apiGroups.POST("", groupsCtrl.Create)
@@ -49,8 +57,9 @@ func InitHandlers() *gin.Engine {
 	apiGroupsID.DELETE("", groupsCtrl.Delete)
 
 	//car services
+
+	carServicesCtrl := handlers.NewCarServicesController(carServicesSrv)
 	apiServiceCtrl := apiCarsID.Group("/groups/:groupID/services", groupsCtrl.CheckParamGroupID)
-	carServicesCtrl := handlers.NewCarServicesController()
 	apiServiceCtrl.GET("", carServicesCtrl.GetServicesByCurrentUserAndGroup)
 	apiServiceCtrl.POST("", carServicesCtrl.Create)
 	apiServiceCtrlID := r.Group("/api/services/:serviceID", authCtrl.CheckAuth, carServicesCtrl.CheckParamServiceID)
