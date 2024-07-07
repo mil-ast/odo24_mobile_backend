@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	cars_service "odo24_mobile_backend/api/services/cars"
+	groups_service "odo24_mobile_backend/api/services/groups"
 	"odo24_mobile_backend/api/utils"
 	"strconv"
 
@@ -10,17 +12,19 @@ import (
 )
 
 type CarsController struct {
-	service *cars_service.CarsService
+	service       *cars_service.CarsService
+	groupsService *groups_service.GroupsService
 }
 
-func NewCarsController() *CarsController {
+func NewCarsController(srv *cars_service.CarsService, groupsSrv *groups_service.GroupsService) *CarsController {
 	return &CarsController{
-		service: cars_service.NewCarsService(),
+		service:       srv,
+		groupsService: groupsSrv,
 	}
 }
 
 func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 	cars, err := ctrl.service.GetCarsByUser(userID)
 	if err != nil {
 		utils.BindServiceErrorWithAbort(c, "GetCarsError", "Не удалось получить авто", err)
@@ -29,13 +33,77 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 
 	if len(cars) == 0 {
 		utils.BindNoContent(c)
-	} else {
-		c.JSON(http.StatusOK, cars)
+		return
 	}
+
+	var carIDs []uint64
+
+	for i := range cars {
+		carIDs = append(carIDs, cars[i].CarID)
+	}
+
+	info, err := ctrl.service.GetCarNextServiceInformation(carIDs)
+	if err != nil {
+		log.Printf("getCarNextServiceInformation error: %v", err)
+	} else {
+		if info != nil {
+			mapGroupIDs := make(map[uint64]struct{})
+			var uniqGroupIDs []uint64
+			for carID := range info {
+				for groupID := range info[carID] {
+					if _, ok := mapGroupIDs[groupID]; !ok {
+						mapGroupIDs[groupID] = struct{}{}
+						uniqGroupIDs = append(uniqGroupIDs, groupID)
+					}
+				}
+			}
+
+			groups, err := ctrl.groupsService.GetGroupsByIDs(uniqGroupIDs)
+			if err != nil {
+				log.Printf("GetGroupsByIDs error: %v", err)
+			} else if len(groups) > 0 {
+				mapGroups := make(map[uint64]groups_service.GroupModel)
+				for i := range groups {
+					mapGroups[groups[i].GroupID] = groups[i]
+				}
+
+				extInfo := make(map[uint64][]cars_service.CarExtData)
+				for carID := range info {
+					if _, ok := extInfo[carID]; !ok {
+						extInfo[carID] = []cars_service.CarExtData{}
+					}
+					for groupID, data := range info[carID] {
+						var groupName string
+
+						if _, ok := mapGroups[groupID]; ok {
+							groupName = mapGroups[groupID].Name
+						} else {
+							groupName = "Group " + strconv.FormatUint(groupID, 10)
+						}
+
+						extInfo[carID] = append(extInfo[carID], cars_service.CarExtData{
+							Odo:       data.Odo,
+							NextOdo:   data.NextOdo,
+							GroupName: groupName,
+						})
+					}
+				}
+
+				for i := range cars {
+					data, ok := extInfo[cars[i].CarID]
+					if ok {
+						cars[i].CarExtData = append(cars[i].CarExtData, data...)
+					}
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, cars)
 }
 
 func (ctrl *CarsController) Create(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 
 	var body struct {
 		Name   string `json:"name" binding:"required"`
@@ -63,7 +131,7 @@ func (ctrl *CarsController) Create(c *gin.Context) {
 }
 
 func (ctrl *CarsController) Update(c *gin.Context) {
-	carID := c.MustGet("carID").(int64)
+	carID := c.MustGet("carID").(uint64)
 
 	var body struct {
 		Name   string `json:"name" binding:"required"`
@@ -92,7 +160,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 }
 
 func (ctrl *CarsController) UpdateODO(c *gin.Context) {
-	carID := c.MustGet("carID").(int64)
+	carID := c.MustGet("carID").(uint64)
 
 	var body struct {
 		Odo uint32 `json:"odo" binding:"required"`
@@ -113,7 +181,7 @@ func (ctrl *CarsController) UpdateODO(c *gin.Context) {
 }
 
 func (ctrl *CarsController) Delete(c *gin.Context) {
-	carID := c.MustGet("carID").(int64)
+	carID := c.MustGet("carID").(uint64)
 
 	err := ctrl.service.Delete(carID)
 	if err != nil {
@@ -131,13 +199,13 @@ func (ctrl *CarsController) CheckParamCarID(c *gin.Context) {
 		return
 	}
 
-	carID, err := strconv.ParseInt(paramCarID, 10, 64)
+	carID, err := strconv.ParseUint(paramCarID, 10, 64)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "Ошибка парсинга carID", err)
 		return
 	}
 
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 
 	err = ctrl.service.CheckOwner(carID, userID)
 	if err != nil {

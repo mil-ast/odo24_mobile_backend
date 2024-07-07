@@ -13,14 +13,14 @@ type GroupsController struct {
 	service *groups_service.GroupsService
 }
 
-func NewGroupsController() *GroupsController {
+func NewGroupsController(srv *groups_service.GroupsService) *GroupsController {
 	return &GroupsController{
-		service: groups_service.NewGroupsService(),
+		service: srv,
 	}
 }
 
 func (ctrl *GroupsController) GetGroupsByCurrentUser(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 	groups, err := ctrl.service.GetGroupsByUser(userID)
 	if err != nil {
 		utils.BindServiceErrorWithAbort(c, "GetGroupsError", "Не удалось получить группы", err)
@@ -35,7 +35,7 @@ func (ctrl *GroupsController) GetGroupsByCurrentUser(c *gin.Context) {
 }
 
 func (ctrl *GroupsController) Create(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 
 	var body struct {
 		Name string `json:"name" binding:"required"`
@@ -59,8 +59,8 @@ func (ctrl *GroupsController) Create(c *gin.Context) {
 }
 
 func (ctrl *GroupsController) Update(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
-	groupID := c.MustGet("groupID").(int64)
+	userID := c.MustGet("userID").(uint64)
+	groupID := c.MustGet("groupID").(uint64)
 
 	var body struct {
 		Name string `json:"name" binding:"required"`
@@ -85,7 +85,7 @@ func (ctrl *GroupsController) Update(c *gin.Context) {
 }
 
 func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 
 	var body []int64
 
@@ -105,8 +105,8 @@ func (ctrl *GroupsController) UpdateSort(c *gin.Context) {
 }
 
 func (ctrl *GroupsController) Delete(c *gin.Context) {
-	userID := c.MustGet("userID").(int64)
-	groupID := c.MustGet("groupID").(int64)
+	userID := c.MustGet("userID").(uint64)
+	groupID := c.MustGet("groupID").(uint64)
 
 	err := ctrl.service.Delete(userID, groupID)
 	if err != nil {
@@ -124,13 +124,13 @@ func (ctrl *GroupsController) CheckParamGroupID(c *gin.Context) {
 		return
 	}
 
-	groupID, err := strconv.ParseInt(paramGroupID, 10, 64)
+	groupID, err := strconv.ParseUint(paramGroupID, 10, 64)
 	if err != nil {
 		utils.BindBadRequestWithAbort(c, "Ошибка парсинга группы", err)
 		return
 	}
 
-	userID := c.MustGet("userID").(int64)
+	userID := c.MustGet("userID").(uint64)
 
 	err = ctrl.service.CheckOwner(groupID, userID)
 	if err != nil {

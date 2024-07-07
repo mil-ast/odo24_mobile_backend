@@ -115,7 +115,7 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 		return ErrLoginAlreadyExists
 	}
 
-	var userID int64
+	var userID uint64
 	err = pg.QueryRow(`INSERT INTO profiles.users (login,password_hash,oauth,last_login_dt,salt) VALUES($1,$2,$3,now()::timestamp without time zone,$4) RETURNING user_id`, email.Address, newPassword, false, salt).Scan(&userID)
 	if err != nil {
 		return err
