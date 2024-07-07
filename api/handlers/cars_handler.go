@@ -92,12 +92,7 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 				for i := range cars {
 					data, ok := extInfo[cars[i].CarID]
 					if ok {
-						for d := range data {
-							next := data[d].Odo + data[d].NextOdo
-							if next > cars[i].Odo {
-								cars[i].CarExtData = append(cars[i].CarExtData, data[d])
-							}
-						}
+						cars[i].CarExtData = append(cars[i].CarExtData, data...)
 					}
 				}
 			}
