@@ -111,26 +111,16 @@ func (srv *AuthService) ChangePassword(userID uint64, oldPassword, newPassword s
 		return err
 	}
 
-	currentHashPassword, err := utils.GetPasswordHash(currentPassword, currentSalt)
-	if err != nil {
-		return err
-	}
-
-	if !bytes.Equal(oldHashPassword, currentHashPassword) {
+	if !bytes.Equal(oldHashPassword, currentPassword) {
 		return errors.New("invalid password")
 	}
 
-	salt, err := utils.GenerateSalt()
-	if err != nil {
-		return err
-	}
-
-	newHashPassword, err := utils.GetPasswordHash([]byte(newPassword), salt)
-	if err != nil {
-		return err
-	}
-
 	newSalt, err := utils.GenerateSalt()
+	if err != nil {
+		return err
+	}
+
+	newHashPassword, err := utils.GetPasswordHash([]byte(newPassword), newSalt)
 	if err != nil {
 		return err
 	}
