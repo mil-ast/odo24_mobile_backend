@@ -6,11 +6,13 @@ import (
 	"log"
 	"math/rand"
 	"net/mail"
-	"odo24_mobile_backend/api/services"
-	"odo24_mobile_backend/api/utils"
-	"odo24_mobile_backend/db"
-	"odo24_mobile_backend/sendmail"
+
 	"time"
+
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
+	"github.com/mil-ast/odo24_mobile_backend/db"
+	"github.com/mil-ast/odo24_mobile_backend/sendmail"
 )
 
 var (

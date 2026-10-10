@@ -1,12 +1,9 @@
 package groups_service
 
 import (
-	"fmt"
-	"odo24_mobile_backend/api/services"
-	"odo24_mobile_backend/db"
-	"strings"
-
 	"github.com/lib/pq"
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
+	"github.com/mil-ast/odo24_mobile_backend/db"
 )
 
 type GroupsService struct{}
@@ -36,6 +33,10 @@ func (srv *GroupsService) GetGroupsByUser(userID uint64) ([]GroupModel, error) {
 		groups = append(groups, group)
 	}
 
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return groups, nil
 }
 
@@ -60,6 +61,10 @@ func (srv *GroupsService) GetGroupsByIDs(groupIDs []uint64) ([]GroupModel, error
 			return []GroupModel{}, err
 		}
 		groups = append(groups, group)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return groups, nil
@@ -100,15 +105,16 @@ func (srv *GroupsService) Update(userID uint64, groupBody GroupModel) error {
 }
 
 func (srv *GroupsService) UpdateSort(userID uint64, groupIDs []int64) error {
+	if len(groupIDs) == 0 {
+		return nil
+	}
+
 	pg := db.Conn()
 
-	sortedIDs := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(groupIDs)), ","), "[]")
-
-	var query = fmt.Sprintf(`UPDATE service_book.service_groups SET sort=s.idx
-		FROM (SELECT * FROM LATERAL unnest(array[%s]) WITH ORDINALITY AS t(id,idx)) s
-		WHERE user_id=$1 AND group_id=s.id`, sortedIDs)
-
-	_, err := pg.Exec(query, userID)
+	var query = `UPDATE service_book.service_groups SET sort = s.idx
+		FROM (SELECT * FROM unnest($2::int8[]) WITH ORDINALITY AS t(id, idx)) s
+		WHERE user_id = $1 AND group_id = s.id`
+	_, err := pg.Exec(query, userID, pq.Array(groupIDs))
 	return err
 }
 

@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"odo24_mobile_backend/api/services"
-	"odo24_mobile_backend/api/utils"
-	"odo24_mobile_backend/db"
+
 	"os"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
+	"github.com/mil-ast/odo24_mobile_backend/db"
 )
 
 const (

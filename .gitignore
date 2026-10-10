@@ -6,3 +6,4 @@ __debug_bin*
 .jwt_keys
 ansible
 odo24_mobile_backend
+nginx_conf

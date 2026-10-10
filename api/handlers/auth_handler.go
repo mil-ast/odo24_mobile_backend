@@ -4,14 +4,15 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"odo24_mobile_backend/api/services"
-	auth_service "odo24_mobile_backend/api/services/auth"
-	"odo24_mobile_backend/api/utils"
-	"odo24_mobile_backend/config"
+
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
+	auth_service "github.com/mil-ast/odo24_mobile_backend/api/services/auth"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
+	"github.com/mil-ast/odo24_mobile_backend/config"
 )
 
 type AuthController struct {

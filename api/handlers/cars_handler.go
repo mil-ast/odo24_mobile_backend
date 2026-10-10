@@ -3,12 +3,13 @@ package handlers
 import (
 	"log"
 	"net/http"
-	cars_service "odo24_mobile_backend/api/services/cars"
-	groups_service "odo24_mobile_backend/api/services/groups"
-	"odo24_mobile_backend/api/utils"
+
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	cars_service "github.com/mil-ast/odo24_mobile_backend/api/services/cars"
+	groups_service "github.com/mil-ast/odo24_mobile_backend/api/services/groups"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
 )
 
 type CarsController struct {

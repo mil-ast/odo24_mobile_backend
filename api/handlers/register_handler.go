@@ -6,11 +6,10 @@ import (
 	"net/mail"
 	"time"
 
-	register_service "odo24_mobile_backend/api/services/register"
-	"odo24_mobile_backend/api/utils"
-
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/gin-gonic/gin"
+	register_service "github.com/mil-ast/odo24_mobile_backend/api/services/register"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
 )
 
 type RegisterController struct {

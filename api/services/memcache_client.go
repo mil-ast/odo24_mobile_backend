@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"net/mail"
-	"odo24_mobile_backend/config"
 	"strings"
 
 	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/mil-ast/odo24_mobile_backend/config"
 )
 
 var client *memcache.Client

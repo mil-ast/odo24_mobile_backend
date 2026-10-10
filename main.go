@@ -4,10 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"odo24_mobile_backend/api"
-	"odo24_mobile_backend/config"
-	"odo24_mobile_backend/db"
-	"odo24_mobile_backend/sendmail"
+
+	"github.com/mil-ast/odo24_mobile_backend/api"
+	"github.com/mil-ast/odo24_mobile_backend/config"
+	"github.com/mil-ast/odo24_mobile_backend/db"
+	"github.com/mil-ast/odo24_mobile_backend/sendmail"
 )
 
 func main() {
