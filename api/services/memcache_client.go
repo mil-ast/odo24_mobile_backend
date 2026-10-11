@@ -13,6 +13,8 @@ import (
 
 const confirmCodeExpiration = 60 * 10
 const MaxConfirmCodeAttempts = 5
+const loginAttemptExpiration = 60 * 15
+const MaxLoginAttempts = 5
 
 var client *memcache.Client
 
@@ -135,4 +137,53 @@ func ResetConfirmCodeAttempts(email *mail.Address) error {
 
 func DeleteConfirmCodeAttempts(email *mail.Address) error {
 	return ResetConfirmCodeAttempts(email)
+}
+
+func getLoginAttemptKey(login string) string {
+	return "login_attempts:" + strings.ToLower(strings.Replace(login, "@", ".", -1))
+}
+
+func GetLoginAttempts(login string) (int, error) {
+	memc := getMemcachedClient()
+	item, err := memc.Get(getLoginAttemptKey(login))
+	if err != nil {
+		if errors.Is(err, memcache.ErrCacheMiss) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	n, err := strconv.Atoi(string(item.Value))
+	if err != nil {
+		return 0, nil
+	}
+	return n, nil
+}
+
+func IncrementLoginAttempts(login string) (int, error) {
+	memc := getMemcachedClient()
+
+	attempts, err := GetLoginAttempts(login)
+	if err != nil {
+		return 0, err
+	}
+	attempts++
+
+	err = memc.Set(&memcache.Item{
+		Key:        getLoginAttemptKey(login),
+		Value:      []byte(strconv.Itoa(attempts)),
+		Expiration: loginAttemptExpiration,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return attempts, nil
+}
+
+func ResetLoginAttempts(login string) error {
+	memc := getMemcachedClient()
+	err := memc.Delete(getLoginAttemptKey(login))
+	if err != nil && !errors.Is(err, memcache.ErrCacheMiss) {
+		return err
+	}
+	return nil
 }
