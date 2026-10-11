@@ -1,7 +1,6 @@
 package auth_service
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -76,13 +75,28 @@ func (srv *AuthService) Login(email string, password string) (*AuthResultModel, 
 		return nil, services.ErrorUnauthorize
 	}
 
-	currentPassword, err := utils.GetPasswordHash([]byte(password), user.Salt)
+	match, isLegacy, err := utils.VerifyPassword([]byte(password), user.Salt, user.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	if !bytes.Equal(currentPassword, user.Password) {
+	if !match {
 		return nil, services.ErrorUnauthorize
+	}
+
+	if isLegacy {
+		newSalt, err := utils.GenerateSalt()
+		if err != nil {
+			return nil, err
+		}
+		newHash, err := utils.GetPasswordHash([]byte(password), newSalt)
+		if err != nil {
+			return nil, err
+		}
+		_, err = pg.Exec("update profiles.users set password_hash=$1,salt=$2 where user_id=$3", newHash, newSalt, user.UserID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	tokens, tokenUUID, err := srv.tokenGenerate(user.UserID)
@@ -107,12 +121,12 @@ func (srv *AuthService) ChangePassword(userID uint64, oldPassword, newPassword s
 		return err
 	}
 
-	oldHashPassword, err := utils.GetPasswordHash([]byte(oldPassword), currentSalt)
+	match, _, err := utils.VerifyPassword([]byte(oldPassword), currentSalt, currentPassword)
 	if err != nil {
 		return err
 	}
 
-	if !bytes.Equal(oldHashPassword, currentPassword) {
+	if !match {
 		return errors.New("invalid password")
 	}
 
@@ -126,7 +140,9 @@ func (srv *AuthService) ChangePassword(userID uint64, oldPassword, newPassword s
 		return err
 	}
 
-	_, err = pg.Exec("update profiles.users set password_hash=$1,salt=$2 where user_id=$3", newHashPassword, newSalt, userID)
+	newTokenUUID := uuid.New().String()
+
+	_, err = pg.Exec("update profiles.users set password_hash=$1,salt=$2,token_uuid=$3 where user_id=$4", newHashPassword, newSalt, newTokenUUID, userID)
 	if err != nil {
 		return err
 	}

@@ -54,7 +54,7 @@ func (ctrl *RegisterController) RegisterByEmail(c *gin.Context) {
 
 	var body struct {
 		Email    string `json:"email" binding:"required,email"`
-		Code     uint16 `json:"code" binding:"required"`
+		Code     uint32 `json:"code" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
 	err := c.ShouldBindJSON(&body)
@@ -71,7 +71,7 @@ func (ctrl *RegisterController) RegisterByEmail(c *gin.Context) {
 
 	err = ctrl.service.RegisterByEmail(emailAddr, body.Code, body.Password)
 	if err != nil {
-		if errors.Is(err, memcache.ErrCacheMiss) || errors.Is(err, register_service.ErrCodeDoesNotMatch) {
+		if errors.Is(err, memcache.ErrCacheMiss) || errors.Is(err, register_service.ErrCodeDoesNotMatch) || errors.Is(err, register_service.ErrCodeTooManyAttempts) {
 			utils.BindErrorWithAbort(c, http.StatusForbidden, "ConfirmCodeError", "Неверный код подтверждения", err)
 			return
 		}
@@ -122,7 +122,7 @@ func (ctrl *RegisterController) RecoverPassword(c *gin.Context) {
 
 	var body struct {
 		Email    string `json:"email" binding:"required,email"`
-		Code     uint16 `json:"code" binding:"required"`
+		Code     uint32 `json:"code" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
 	err := c.ShouldBindJSON(&body)
@@ -139,7 +139,7 @@ func (ctrl *RegisterController) RecoverPassword(c *gin.Context) {
 
 	err = ctrl.service.PasswordRecovery(emailAddr, body.Code, body.Password)
 	if err != nil {
-		if errors.Is(err, memcache.ErrCacheMiss) || errors.Is(err, register_service.ErrCodeDoesNotMatch) {
+		if errors.Is(err, memcache.ErrCacheMiss) || errors.Is(err, register_service.ErrCodeDoesNotMatch) || errors.Is(err, register_service.ErrCodeTooManyAttempts) {
 			utils.BindErrorWithAbort(c, http.StatusForbidden, "ConfirmCodeError", "Неверный код подтверждения", err)
 			return
 		}
