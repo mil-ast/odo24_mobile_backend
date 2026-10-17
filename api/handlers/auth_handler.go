@@ -4,14 +4,15 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"odo24_mobile_backend/api/services"
-	auth_service "odo24_mobile_backend/api/services/auth"
-	"odo24_mobile_backend/api/utils"
-	"odo24_mobile_backend/config"
+
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
+	auth_service "github.com/mil-ast/odo24_mobile_backend/api/services/auth"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
+	"github.com/mil-ast/odo24_mobile_backend/config"
 )
 
 type AuthController struct {
@@ -67,15 +68,36 @@ func (ctrl *AuthController) Login(c *gin.Context) {
 		return
 	}
 
+	attempts, err := services.GetLoginAttempts(body.Email)
+	if err != nil {
+		utils.BindServiceErrorWithAbort(c, "LoginError", "Произошла ошибка при авторизации", err)
+		return
+	}
+	if attempts >= services.MaxLoginAttempts {
+		utils.BindErrorWithAbort(c, http.StatusTooManyRequests, "TooManyAttempts", "Слишком много попыток. Попробуйте позже", nil)
+		return
+	}
+
 	token, err := ctrl.service.Login(body.Email, body.Password)
 	if err != nil {
 		if errors.Is(err, services.ErrorUnauthorize) {
+			attempts, incErr := services.IncrementLoginAttempts(body.Email)
+			if incErr != nil {
+				utils.BindServiceErrorWithAbort(c, "LoginError", "Произошла ошибка при авторизации", incErr)
+				return
+			}
+			if attempts >= services.MaxLoginAttempts {
+				utils.BindErrorWithAbort(c, http.StatusTooManyRequests, "TooManyAttempts", "Слишком много попыток. Попробуйте позже", err)
+				return
+			}
 			utils.BindErrorWithAbort(c, http.StatusUnauthorized, "AuthError", "Неверный логин или пароль", nil)
 		} else {
 			utils.BindServiceErrorWithAbort(c, "LoginError", "Произошла ошибка при авторизации", err)
 		}
 		return
 	}
+
+	services.ResetLoginAttempts(body.Email)
 
 	c.JSON(http.StatusOK, token)
 }

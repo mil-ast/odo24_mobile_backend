@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"io/ioutil"
-	"odo24_mobile_backend/config"
+	"os"
 
+	"github.com/mil-ast/odo24_mobile_backend/config"
 	email "github.com/mil-ast/sendmail"
 )
 
@@ -33,7 +33,7 @@ func InitSendmail() {
 	)
 
 	for index, fileName := range files {
-		body, err = ioutil.ReadFile(fmt.Sprintf("./sendmail/%s.eml", fileName))
+		body, err = os.ReadFile(fmt.Sprintf("./sendmail/%s.eml", fileName))
 		if err != nil {
 			panic(err)
 		}

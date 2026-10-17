@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"net/http"
-	groups_service "odo24_mobile_backend/api/services/groups"
-	"odo24_mobile_backend/api/utils"
+
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	groups_service "github.com/mil-ast/odo24_mobile_backend/api/services/groups"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
 )
 
 type GroupsController struct {

@@ -1,8 +1,8 @@
 package car_services_service
 
 import (
-	"odo24_mobile_backend/api/services"
-	"odo24_mobile_backend/db"
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
+	"github.com/mil-ast/odo24_mobile_backend/db"
 )
 
 type CarServicesService struct{}

@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"net/http"
-	car_services_service "odo24_mobile_backend/api/services/car_services"
-	"odo24_mobile_backend/api/utils"
+
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	car_services_service "github.com/mil-ast/odo24_mobile_backend/api/services/car_services"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
 )
 
 type CarServicesController struct {

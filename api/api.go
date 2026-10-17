@@ -1,12 +1,11 @@
 package api
 
 import (
-	"odo24_mobile_backend/api/handlers"
-	car_services_service "odo24_mobile_backend/api/services/car_services"
-	cars_service "odo24_mobile_backend/api/services/cars"
-	groups_service "odo24_mobile_backend/api/services/groups"
-
 	"github.com/gin-gonic/gin"
+	"github.com/mil-ast/odo24_mobile_backend/api/handlers"
+	car_services_service "github.com/mil-ast/odo24_mobile_backend/api/services/car_services"
+	cars_service "github.com/mil-ast/odo24_mobile_backend/api/services/cars"
+	groups_service "github.com/mil-ast/odo24_mobile_backend/api/services/groups"
 )
 
 func InitHandlers() *gin.Engine {

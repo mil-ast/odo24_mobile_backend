@@ -1,33 +1,30 @@
 package register_service
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"log"
-	"math/rand"
+	"math/big"
 	"net/mail"
-	"odo24_mobile_backend/api/services"
-	"odo24_mobile_backend/api/utils"
-	"odo24_mobile_backend/db"
-	"odo24_mobile_backend/sendmail"
-	"time"
+
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
+	"github.com/mil-ast/odo24_mobile_backend/api/utils"
+	"github.com/mil-ast/odo24_mobile_backend/db"
+	"github.com/mil-ast/odo24_mobile_backend/sendmail"
 )
 
 var (
 	ErrLoginAlreadyExists     = errors.New("errLoginAlreadyExists")
 	ErrCodeHasAlreadyBeenSent = errors.New("code has already been sent")
 	ErrCodeDoesNotMatch       = errors.New("code does not match")
+	ErrCodeTooManyAttempts    = errors.New("code too many attempts")
 )
 
-type RegisterService struct {
-	rnd *rand.Rand
-}
+type RegisterService struct{}
 
 func NewRegisterService() *RegisterService {
-	src := rand.NewSource(time.Now().UnixNano())
-	return &RegisterService{
-		rnd: rand.New(src),
-	}
+	return &RegisterService{}
 }
 
 func (srv *RegisterService) SendEmailCodeConfirmation(email *mail.Address) error {
@@ -40,7 +37,10 @@ func (srv *RegisterService) SendEmailCodeConfirmation(email *mail.Address) error
 		return nil
 	}
 
-	code := srv.generateConfirmationCode()
+	code, err := srv.generateConfirmationCode()
+	if err != nil {
+		return err
+	}
 
 	err = services.AddEmailCodeConfirmation(email, code)
 	if err != nil {
@@ -63,7 +63,10 @@ func (srv *RegisterService) PasswordRecoverySendEmailCodeConfirmation(email *mai
 		return ErrCodeHasAlreadyBeenSent
 	}
 
-	code := srv.generateConfirmationCode()
+	code, err := srv.generateConfirmationCode()
+	if err != nil {
+		return err
+	}
 
 	err = services.AddEmailCodeConfirmation(email, code)
 	if err != nil {
@@ -77,7 +80,19 @@ func (srv *RegisterService) PasswordRecoverySendEmailCodeConfirmation(email *mai
 	return err
 }
 
-func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, password string) error {
+func (srv *RegisterService) checkAttempts(email *mail.Address) error {
+	attempts, err := services.GetConfirmCodeAttempts(email)
+	if err != nil {
+		return err
+	}
+	if attempts >= services.MaxConfirmCodeAttempts {
+		services.DeleteEmailCodeConfirmation(email)
+		return ErrCodeTooManyAttempts
+	}
+	return nil
+}
+
+func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint32, password string) error {
 	item, err := services.GetEmailCodeConfirmation(email)
 	if err != nil {
 		return err
@@ -88,9 +103,20 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 		return ErrCodeDoesNotMatch
 	}
 
-	confirmCode := binary.LittleEndian.Uint16(item.Value)
+	if err := srv.checkAttempts(email); err != nil {
+		return err
+	}
+
+	confirmCode := binary.LittleEndian.Uint32(item.Value)
 
 	if code != confirmCode {
+		attempts, err := services.IncrementConfirmCodeAttempts(email)
+		if err != nil {
+			return err
+		}
+		if attempts >= services.MaxConfirmCodeAttempts {
+			services.DeleteEmailCodeConfirmation(email)
+		}
 		return ErrCodeDoesNotMatch
 	}
 
@@ -125,7 +151,7 @@ func (srv *RegisterService) RegisterByEmail(email *mail.Address, code uint16, pa
 	return nil
 }
 
-func (srv *RegisterService) PasswordRecovery(email *mail.Address, code uint16, password string) error {
+func (srv *RegisterService) PasswordRecovery(email *mail.Address, code uint32, password string) error {
 	item, err := services.GetEmailCodeConfirmation(email)
 	if err != nil {
 		return err
@@ -136,9 +162,20 @@ func (srv *RegisterService) PasswordRecovery(email *mail.Address, code uint16, p
 		return ErrCodeDoesNotMatch
 	}
 
-	confirmCode := binary.LittleEndian.Uint16(item.Value)
+	if err := srv.checkAttempts(email); err != nil {
+		return err
+	}
+
+	confirmCode := binary.LittleEndian.Uint32(item.Value)
 
 	if code != confirmCode {
+		attempts, err := services.IncrementConfirmCodeAttempts(email)
+		if err != nil {
+			return err
+		}
+		if attempts >= services.MaxConfirmCodeAttempts {
+			services.DeleteEmailCodeConfirmation(email)
+		}
 		return ErrCodeDoesNotMatch
 	}
 
@@ -162,9 +199,11 @@ func (srv *RegisterService) PasswordRecovery(email *mail.Address, code uint16, p
 	return nil
 }
 
-func (ctrl *RegisterService) generateConfirmationCode() uint16 {
-	var value = ctrl.rnd.Uint32()
-	value %= (9999 - 1000)
-	value += 1000
-	return uint16(value)
+func (srv *RegisterService) generateConfirmationCode() (uint32, error) {
+	// 6-значный код в диапазоне [100000, 999999]
+	n, err := rand.Int(rand.Reader, big.NewInt(900000))
+	if err != nil {
+		return 0, err
+	}
+	return uint32(n.Int64()) + 100000, nil
 }
