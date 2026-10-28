@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"log"
 	"net/http"
-
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mil-ast/odo24_mobile_backend/api/services"
 	cars_service "github.com/mil-ast/odo24_mobile_backend/api/services/cars"
 	groups_service "github.com/mil-ast/odo24_mobile_backend/api/services/groups"
 	"github.com/mil-ast/odo24_mobile_backend/api/utils"
@@ -46,55 +47,55 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 	info, err := ctrl.service.GetCarNextServiceInformation(carIDs)
 	if err != nil {
 		log.Printf("getCarNextServiceInformation error: %v", err)
-	} else {
-		if info != nil {
-			mapGroupIDs := make(map[uint64]struct{})
-			var uniqGroupIDs []uint64
+	}
+
+	if info != nil {
+		mapGroupIDs := make(map[uint64]struct{})
+		var uniqGroupIDs []uint64
+		for carID := range info {
+			for groupID := range info[carID] {
+				if _, ok := mapGroupIDs[groupID]; !ok {
+					mapGroupIDs[groupID] = struct{}{}
+					uniqGroupIDs = append(uniqGroupIDs, groupID)
+				}
+			}
+		}
+
+		groups, err := ctrl.groupsService.GetGroupsByIDs(uniqGroupIDs)
+		if err != nil {
+			log.Printf("GetGroupsByIDs error: %v", err)
+		} else if len(groups) > 0 {
+			mapGroups := make(map[uint64]groups_service.GroupModel)
+			for i := range groups {
+				mapGroups[groups[i].GroupID] = groups[i]
+			}
+
+			extInfo := make(map[uint64][]cars_service.CarExtData)
 			for carID := range info {
-				for groupID := range info[carID] {
-					if _, ok := mapGroupIDs[groupID]; !ok {
-						mapGroupIDs[groupID] = struct{}{}
-						uniqGroupIDs = append(uniqGroupIDs, groupID)
+				if _, ok := extInfo[carID]; !ok {
+					extInfo[carID] = []cars_service.CarExtData{}
+				}
+				for groupID, data := range info[carID] {
+					var groupName string
+
+					if _, ok := mapGroups[groupID]; ok {
+						groupName = mapGroups[groupID].Name
+					} else {
+						groupName = "Group " + strconv.FormatUint(groupID, 10)
 					}
+
+					extInfo[carID] = append(extInfo[carID], cars_service.CarExtData{
+						Odo:       data.Odo,
+						NextOdo:   data.NextOdo,
+						GroupName: groupName,
+					})
 				}
 			}
 
-			groups, err := ctrl.groupsService.GetGroupsByIDs(uniqGroupIDs)
-			if err != nil {
-				log.Printf("GetGroupsByIDs error: %v", err)
-			} else if len(groups) > 0 {
-				mapGroups := make(map[uint64]groups_service.GroupModel)
-				for i := range groups {
-					mapGroups[groups[i].GroupID] = groups[i]
-				}
-
-				extInfo := make(map[uint64][]cars_service.CarExtData)
-				for carID := range info {
-					if _, ok := extInfo[carID]; !ok {
-						extInfo[carID] = []cars_service.CarExtData{}
-					}
-					for groupID, data := range info[carID] {
-						var groupName string
-
-						if _, ok := mapGroups[groupID]; ok {
-							groupName = mapGroups[groupID].Name
-						} else {
-							groupName = "Group " + strconv.FormatUint(groupID, 10)
-						}
-
-						extInfo[carID] = append(extInfo[carID], cars_service.CarExtData{
-							Odo:       data.Odo,
-							NextOdo:   data.NextOdo,
-							GroupName: groupName,
-						})
-					}
-				}
-
-				for i := range cars {
-					data, ok := extInfo[cars[i].CarID]
-					if ok {
-						cars[i].CarExtData = append(cars[i].CarExtData, data...)
-					}
+			for i := range cars {
+				data, ok := extInfo[cars[i].CarID]
+				if ok {
+					cars[i].CarExtData = append(cars[i].CarExtData, data...)
 				}
 			}
 		}
@@ -108,7 +109,7 @@ func (ctrl *CarsController) Create(c *gin.Context) {
 
 	var body struct {
 		Name   string `json:"name" binding:"required"`
-		Odo    uint32 `json:"odo" binding:"required"`
+		Odo    uint32 `json:"odo"`
 		Avatar bool   `json:"avatar"`
 	}
 	err := c.ShouldBindJSON(&body)
@@ -124,7 +125,7 @@ func (ctrl *CarsController) Create(c *gin.Context) {
 	}
 	car, err := ctrl.service.Create(userID, model)
 	if err != nil {
-		utils.BindServiceErrorWithAbort(c, "CartCreateError", "Не удалось создать авто", err)
+		utils.BindServiceErrorWithAbort(c, "CarCreateError", "Не удалось создать авто", err)
 		return
 	}
 
@@ -136,7 +137,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 
 	var body struct {
 		Name   string `json:"name" binding:"required"`
-		Odo    uint32 `json:"odo" binding:"required"`
+		Odo    uint32 `json:"odo"`
 		Avatar bool   `json:"avatar"`
 	}
 	err := c.ShouldBindJSON(&body)
@@ -153,7 +154,7 @@ func (ctrl *CarsController) Update(c *gin.Context) {
 	}
 	err = ctrl.service.Update(model)
 	if err != nil {
-		utils.BindServiceErrorWithAbort(c, "CartUpdateError", "Не удалось изменить авто", err)
+		utils.BindServiceErrorWithAbort(c, "CarUpdateError", "Не удалось изменить авто", err)
 		return
 	}
 
@@ -164,7 +165,7 @@ func (ctrl *CarsController) UpdateODO(c *gin.Context) {
 	carID := c.MustGet("carID").(uint64)
 
 	var body struct {
-		Odo uint32 `json:"odo" binding:"required"`
+		Odo uint32 `json:"odo"`
 	}
 	err := c.ShouldBindJSON(&body)
 	if err != nil {
@@ -174,7 +175,7 @@ func (ctrl *CarsController) UpdateODO(c *gin.Context) {
 
 	err = ctrl.service.UpdateODO(carID, body.Odo)
 	if err != nil {
-		utils.BindServiceErrorWithAbort(c, "CartUpdateODOError", "Не удалось сохранить пробег авто", err)
+		utils.BindServiceErrorWithAbort(c, "CarUpdateODOError", "Не удалось сохранить пробег авто", err)
 		return
 	}
 
@@ -210,7 +211,11 @@ func (ctrl *CarsController) CheckParamCarID(c *gin.Context) {
 
 	err = ctrl.service.CheckOwner(carID, userID)
 	if err != nil {
-		utils.BindErrorWithAbort(c, http.StatusForbidden, "forbidden", "Нет доступа", err)
+		if errors.Is(err, services.ErrorNoPermission) {
+			utils.BindErrorWithAbort(c, http.StatusForbidden, "forbidden", "Нет доступа", err)
+			return
+		}
+		utils.BindServiceErrorWithAbort(c, "CarOwnerCheckError", "Не удалось проверить доступ", err)
 		return
 	}
 

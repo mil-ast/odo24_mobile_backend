@@ -1,6 +1,9 @@
 package cars_service
 
 import (
+	"database/sql"
+	"errors"
+
 	"github.com/lib/pq"
 	"github.com/mil-ast/odo24_mobile_backend/api/services"
 	"github.com/mil-ast/odo24_mobile_backend/db"
@@ -36,6 +39,10 @@ func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
 		cars = append(cars, car)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return cars, nil
 }
 
@@ -58,7 +65,6 @@ func (srv *CarsService) GetCarNextServiceInformation(carIDs []uint64) (map[uint6
 	defer rows.Close()
 
 	rowsMap := make(map[uint64]map[uint64]rowGroup)
-	var mapGroupIDs = make(map[uint64]struct{})
 	for rows.Next() {
 		var row struct {
 			CarID   uint64
@@ -78,7 +84,10 @@ func (srv *CarsService) GetCarNextServiceInformation(carIDs []uint64) (map[uint6
 			Odo:     row.Odo,
 			NextOdo: row.NextOdo,
 		}
-		mapGroupIDs[row.GroupID] = struct{}{}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return rowsMap, nil
@@ -136,7 +145,14 @@ func (srv *CarsService) Delete(carID uint64) error {
 func (srv *CarsService) CheckOwner(carID, userID uint64) error {
 	pg := db.Conn()
 	var dbUserID uint64
-	pg.QueryRow("SELECT user_id FROM service_book.car c WHERE car_id=$1", carID).Scan(&dbUserID)
+	err := pg.QueryRow("SELECT user_id FROM service_book.car WHERE car_id=$1", carID).Scan(&dbUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return services.ErrorNoPermission
+		}
+		return err
+	}
+
 	if dbUserID != userID {
 		return services.ErrorNoPermission
 	}
