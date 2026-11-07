@@ -2,9 +2,9 @@ package cars_service
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 
-	"github.com/lib/pq"
 	"github.com/mil-ast/odo24_mobile_backend/api/services"
 	"github.com/mil-ast/odo24_mobile_backend/db"
 )
@@ -18,79 +18,67 @@ func NewCarsService() *CarsService {
 func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
 	pg := db.Conn()
 
-	rows, err := pg.Query(`SELECT c.car_id, c."name", c.odo, c.avatar, count(s.service_id) services_total
+	rows, err := pg.Query(`SELECT 
+		c.car_id, 
+		c."name", 
+		c.odo, 
+		c.avatar,
+		COALESCE(cnt.services_total, 0) AS services_total,
+		ext.car_ext_data
 		FROM service_book.car c
-		LEFT JOIN service_book.services s ON s.car_id = c.car_id
-		WHERE c.user_id=$1
-		GROUP BY c.car_id`, userID)
+		LEFT JOIN (
+			SELECT s.car_id, count(*) AS services_total
+			FROM service_book.services s
+			GROUP BY s.car_id
+		) cnt ON cnt.car_id = c.car_id
+		LEFT JOIN (
+			SELECT 
+				g.car_id,
+				jsonb_agg(
+					jsonb_build_object(
+						'odo', g.odo,
+						'next_odo', g.next_distance,
+						'group_name', COALESCE(sg."name", 'Group ' || g.group_id::text)
+					) ORDER BY g.group_id
+				) AS car_ext_data
+			FROM (
+				SELECT DISTINCT ON (s.car_id, s.group_id)
+					s.car_id, s.group_id, s.odo, s.next_distance
+				FROM service_book.services s
+				WHERE s.next_distance IS NOT NULL -- Перенесли сюда, чтобы NULL-записи не перекрывали актуальные данные
+				ORDER BY s.car_id, s.group_id, s.odo DESC
+			) g
+			LEFT JOIN service_book.service_groups sg ON sg.group_id = g.group_id
+			GROUP BY g.car_id
+		) ext ON ext.car_id = c.car_id
+		WHERE c.user_id = $1
+		ORDER BY c.car_id`, userID)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	var cars []CarModel
 	for rows.Next() {
 		var car CarModel
-		err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar, &car.ServicesTotal)
-		if err != nil {
+		var rawExt []byte
+		if err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar, &car.ServicesTotal, &rawExt); err != nil {
 			return nil, err
 		}
+
+		if len(rawExt) > 0 {
+			if err := json.Unmarshal(rawExt, &car.CarExtData); err != nil {
+				return nil, err
+			}
+		}
+
 		cars = append(cars, car)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return cars, nil
-}
-
-func (srv *CarsService) GetCarNextServiceInformation(carIDs []uint64) (map[uint64]map[uint64]rowGroup, error) {
-	if len(carIDs) == 0 {
-		return nil, nil
-	}
-	pg := db.Conn()
-
-	rows, err := pg.Query(`SELECT g.car_id, g.group_id, g.odo, g.next_distance FROM (
-    SELECT s.car_id, s.group_id, s.odo, s.next_distance, row_number()
-    OVER (PARTITION BY s.car_id, s.group_id ORDER BY s.odo DESC) AS rownum
-		FROM service_book.services s
-		WHERE s.car_id = ANY($1)
-	) g
-	WHERE rownum=1 and g.next_distance is not null;`, pq.Array(carIDs))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	rowsMap := make(map[uint64]map[uint64]rowGroup)
-	for rows.Next() {
-		var row struct {
-			CarID   uint64
-			GroupID uint64
-			Odo     uint32
-			NextOdo uint32
-		}
-		err := rows.Scan(&row.CarID, &row.GroupID, &row.Odo, &row.NextOdo)
-		if err != nil {
-			return nil, err
-		}
-		if _, ok := rowsMap[row.CarID]; !ok {
-			rowsMap[row.CarID] = make(map[uint64]rowGroup)
-		}
-
-		rowsMap[row.CarID][row.GroupID] = rowGroup{
-			Odo:     row.Odo,
-			NextOdo: row.NextOdo,
-		}
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return rowsMap, nil
 }
 
 func (srv *CarsService) Create(userID uint64, carBody CarCreateModel) (*CarModel, error) {

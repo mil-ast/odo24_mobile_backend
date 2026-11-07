@@ -20,8 +20,3 @@ type CarExtData struct {
 	NextOdo   uint32 `json:"next_odo"`
 	GroupName string `json:"group_name"`
 }
-
-type rowGroup struct {
-	Odo     uint32
-	NextOdo uint32
-}

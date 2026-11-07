@@ -35,6 +35,23 @@ func (ctrl *GroupsController) GetGroupsByCurrentUser(c *gin.Context) {
 	}
 }
 
+func (ctrl *GroupsController) GetGroupsByCar(c *gin.Context) {
+	userID := c.MustGet("userID").(uint64)
+	carID := c.MustGet("carID").(uint64)
+
+	groups, err := ctrl.service.GetGroupsByCar(userID, carID)
+	if err != nil {
+		utils.BindServiceErrorWithAbort(c, "GetGroupsByCarError", "Не удалось получить группы", err)
+		return
+	}
+
+	if len(groups) == 0 {
+		utils.BindNoContent(c)
+	} else {
+		c.JSON(http.StatusOK, groups)
+	}
+}
+
 func (ctrl *GroupsController) Create(c *gin.Context) {
 	userID := c.MustGet("userID").(uint64)
 

@@ -2,26 +2,22 @@ package handlers
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mil-ast/odo24_mobile_backend/api/services"
 	cars_service "github.com/mil-ast/odo24_mobile_backend/api/services/cars"
-	groups_service "github.com/mil-ast/odo24_mobile_backend/api/services/groups"
 	"github.com/mil-ast/odo24_mobile_backend/api/utils"
 )
 
 type CarsController struct {
-	service       *cars_service.CarsService
-	groupsService *groups_service.GroupsService
+	service *cars_service.CarsService
 }
 
-func NewCarsController(srv *cars_service.CarsService, groupsSrv *groups_service.GroupsService) *CarsController {
+func NewCarsController(srv *cars_service.CarsService) *CarsController {
 	return &CarsController{
-		service:       srv,
-		groupsService: groupsSrv,
+		service: srv,
 	}
 }
 
@@ -36,69 +32,6 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 	if len(cars) == 0 {
 		utils.BindNoContent(c)
 		return
-	}
-
-	var carIDs []uint64
-
-	for i := range cars {
-		carIDs = append(carIDs, cars[i].CarID)
-	}
-
-	info, err := ctrl.service.GetCarNextServiceInformation(carIDs)
-	if err != nil {
-		log.Printf("getCarNextServiceInformation error: %v", err)
-	}
-
-	if info != nil {
-		mapGroupIDs := make(map[uint64]struct{})
-		var uniqGroupIDs []uint64
-		for carID := range info {
-			for groupID := range info[carID] {
-				if _, ok := mapGroupIDs[groupID]; !ok {
-					mapGroupIDs[groupID] = struct{}{}
-					uniqGroupIDs = append(uniqGroupIDs, groupID)
-				}
-			}
-		}
-
-		groups, err := ctrl.groupsService.GetGroupsByIDs(uniqGroupIDs)
-		if err != nil {
-			log.Printf("GetGroupsByIDs error: %v", err)
-		} else if len(groups) > 0 {
-			mapGroups := make(map[uint64]groups_service.GroupModel)
-			for i := range groups {
-				mapGroups[groups[i].GroupID] = groups[i]
-			}
-
-			extInfo := make(map[uint64][]cars_service.CarExtData)
-			for carID := range info {
-				if _, ok := extInfo[carID]; !ok {
-					extInfo[carID] = []cars_service.CarExtData{}
-				}
-				for groupID, data := range info[carID] {
-					var groupName string
-
-					if _, ok := mapGroups[groupID]; ok {
-						groupName = mapGroups[groupID].Name
-					} else {
-						groupName = "Group " + strconv.FormatUint(groupID, 10)
-					}
-
-					extInfo[carID] = append(extInfo[carID], cars_service.CarExtData{
-						Odo:       data.Odo,
-						NextOdo:   data.NextOdo,
-						GroupName: groupName,
-					})
-				}
-			}
-
-			for i := range cars {
-				data, ok := extInfo[cars[i].CarID]
-				if ok {
-					cars[i].CarExtData = append(cars[i].CarExtData, data...)
-				}
-			}
-		}
 	}
 
 	c.JSON(http.StatusOK, cars)

@@ -40,6 +40,68 @@ func (srv *GroupsService) GetGroupsByUser(userID uint64) ([]GroupModel, error) {
 	return groups, nil
 }
 
+func (srv *GroupsService) GetGroupsByCar(userID, carID uint64) ([]GroupModel, error) {
+	groups, err := srv.GetGroupsByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(groups) == 0 {
+		return groups, nil
+	}
+
+	pg := db.Conn()
+
+	// next_distance - дельта: через сколько км требуется сервис.
+	// left_odo = (последний сервис этого авто в группе: odo + next_distance) - текущий пробег авто.
+	rows, err := pg.Query(`SELECT g.group_id, g.odo, g.next_distance, c.odo
+		FROM (
+			SELECT DISTINCT ON (s.group_id) s.group_id, s.odo, s.next_distance
+			FROM service_book.services s
+			WHERE s.car_id = $1
+			ORDER BY s.group_id, s.odo DESC
+		) g
+		CROSS JOIN service_book.car c
+		WHERE g.next_distance IS NOT NULL AND c.car_id = $1`, carID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	leftOdoByGroup := make(map[uint64]uint32)
+	for rows.Next() {
+		var groupID uint64
+		var odo uint32
+		var nextDistance uint32
+		var carOdo uint32
+		if err := rows.Scan(&groupID, &odo, &nextDistance, &carOdo); err != nil {
+			return nil, err
+		}
+
+		nextRecommendedOdo := uint64(odo) + uint64(nextDistance)
+		remaining := int64(nextRecommendedOdo) - int64(carOdo)
+		if remaining < 0 {
+			remaining = 0
+		}
+		if remaining > int64(^uint32(0)) {
+			remaining = int64(^uint32(0))
+		}
+		leftOdoByGroup[groupID] = uint32(remaining)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range groups {
+		if leftOdo, ok := leftOdoByGroup[groups[i].GroupID]; ok {
+			groups[i].GroupExtData = &GroupExtData{
+				LeftOdo: leftOdo,
+			}
+		}
+	}
+
+	return groups, nil
+}
+
 func (srv *GroupsService) GetGroupsByIDs(groupIDs []uint64) ([]GroupModel, error) {
 	if len(groupIDs) == 0 {
 		return []GroupModel{}, nil
