@@ -37,6 +37,22 @@ func (ctrl *CarsController) GetCarsByCurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, cars)
 }
 
+func (ctrl *CarsController) GetCarsByCurrentUserV2(c *gin.Context) {
+	userID := c.MustGet("userID").(uint64)
+	cars, err := ctrl.service.GetCarsByUserV2(userID)
+	if err != nil {
+		utils.BindServiceErrorWithAbort(c, "GetCarsV2Error", "Не удалось получить авто", err)
+		return
+	}
+
+	if len(cars) == 0 {
+		utils.BindNoContent(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, cars)
+}
+
 func (ctrl *CarsController) Create(c *gin.Context) {
 	userID := c.MustGet("userID").(uint64)
 

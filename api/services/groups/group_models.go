@@ -8,7 +8,8 @@ type GroupModel struct {
 }
 
 type GroupExtData struct {
-	LeftOdo uint32 `json:"left_odo"`
+	LeftOdo    uint32 `json:"left_odo"`
+	ServiceOdo uint32 `json:"service_odo"`
 }
 
 type GroupCreateModel struct {

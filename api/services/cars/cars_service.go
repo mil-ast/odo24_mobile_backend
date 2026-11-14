@@ -15,7 +15,26 @@ func NewCarsService() *CarsService {
 	return &CarsService{}
 }
 
-func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
+// carRow — сырая строка из запроса списка авто (без разбора car_ext_data).
+type carRow struct {
+	CarID         uint64
+	Name          string
+	Odo           uint32
+	Avatar        bool
+	ServicesTotal uint32
+	RawExt        []byte
+}
+
+// carExtDataRaw — промежуточная структура для разбора car_ext_data из SQL.
+// ServiceOdo — пробег последнего сервиса в группе (service_book.services.odo).
+// В SQL next_odo приходит как дельта (next_distance), а left_odo вычисляется на стороне Go.
+type carExtDataRaw struct {
+	ServiceOdo uint32 `json:"odo"`
+	NextOdo    uint32 `json:"next_odo"`
+	GroupName  string `json:"group_name"`
+}
+
+func (srv *CarsService) queryCarsByUser(userID uint64) ([]carRow, error) {
 	pg := db.Conn()
 
 	rows, err := pg.Query(`SELECT 
@@ -58,20 +77,12 @@ func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
 	}
 	defer rows.Close()
 
-	var cars []CarModel
+	var cars []carRow
 	for rows.Next() {
-		var car CarModel
-		var rawExt []byte
-		if err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar, &car.ServicesTotal, &rawExt); err != nil {
+		var car carRow
+		if err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar, &car.ServicesTotal, &car.RawExt); err != nil {
 			return nil, err
 		}
-
-		if len(rawExt) > 0 {
-			if err := json.Unmarshal(rawExt, &car.CarExtData); err != nil {
-				return nil, err
-			}
-		}
-
 		cars = append(cars, car)
 	}
 	if err := rows.Err(); err != nil {
@@ -79,6 +90,74 @@ func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
 	}
 
 	return cars, nil
+}
+
+func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
+	rows, err := srv.queryCarsByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var cars = make([]CarModel, len(rows))
+	for i, row := range rows {
+		car := CarModel{
+			CarID:         row.CarID,
+			Name:          row.Name,
+			Odo:           row.Odo,
+			Avatar:        row.Avatar,
+			ServicesTotal: row.ServicesTotal,
+		}
+		if len(row.RawExt) > 0 {
+			if err := json.Unmarshal(row.RawExt, &car.CarExtData); err != nil {
+				return nil, err
+			}
+		}
+		cars[i] = car
+	}
+
+	return cars, nil
+}
+
+func (srv *CarsService) GetCarsByUserV2(userID uint64) ([]CarModelV2, error) {
+	rows, err := srv.queryCarsByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var cars = make([]CarModelV2, len(rows))
+	for i, row := range rows {
+		car := CarModelV2{
+			CarID:         row.CarID,
+			Name:          row.Name,
+			Odo:           row.Odo,
+			Avatar:        row.Avatar,
+			ServicesTotal: row.ServicesTotal,
+		}
+		if len(row.RawExt) > 0 {
+			var extData []carExtDataRaw
+			if err := json.Unmarshal(row.RawExt, &extData); err != nil {
+				return nil, err
+			}
+			for _, e := range extData {
+				car.CarExtData = append(car.CarExtData, CarExtDataV2{
+					ServiceOdo: e.ServiceOdo,
+					LeftOdo:    computeLeftOdo(e.ServiceOdo, e.NextOdo, row.Odo),
+					GroupName:  e.GroupName,
+				})
+			}
+		}
+		cars[i] = car
+	}
+
+	return cars, nil
+}
+
+// computeLeftOdo: left_odo = (последний сервис авто в группе: service_odo + next_distance) - текущий пробег авто.
+// Аналогично расчёту left_odo в api/services/groups.
+func computeLeftOdo(serviceOdo, nextDistance, carOdo uint32) uint32 {
+	nextRecommendedOdo := uint64(serviceOdo) + uint64(nextDistance)
+	remaining := min(max(int64(nextRecommendedOdo)-int64(carOdo), 0), int64(^uint32(0)))
+	return uint32(remaining)
 }
 
 func (srv *CarsService) Create(userID uint64, carBody CarCreateModel) (*CarModel, error) {
@@ -102,32 +181,21 @@ func (srv *CarsService) Update(carBody CarModel) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`UPDATE service_book.car SET "name"=$1,odo=$2,avatar=$3 WHERE car_id=$4`, carBody.Name, carBody.Odo, carBody.Avatar, carBody.CarID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (srv *CarsService) UpdateODO(carID uint64, odo uint32) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`UPDATE service_book.car SET odo=$1 WHERE car_id=$2`, odo, carID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (srv *CarsService) Delete(carID uint64) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`DELETE FROM service_book.car WHERE car_id=$1`, carID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (srv *CarsService) CheckOwner(carID, userID uint64) error {

@@ -39,6 +39,10 @@ func InitHandlers() *gin.Engine {
 	apiCars.GET("", carsCtrl.GetCarsByCurrentUser)
 	apiCars.POST("", carsCtrl.Create)
 
+	//cars v2
+	apiCarsV2 := r.Group("/api/cars_v2", authCtrl.CheckAuth)
+	apiCarsV2.GET("", carsCtrl.GetCarsByCurrentUserV2)
+
 	apiCarsID := apiCars.Group("/:carID", carsCtrl.CheckParamCarID)
 	apiCarsID.PUT("", carsCtrl.Update)
 	apiCarsID.PUT("/update_odo", carsCtrl.UpdateODO)
