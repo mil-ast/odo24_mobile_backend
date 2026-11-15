@@ -64,10 +64,13 @@ func (srv *CarsService) queryCarsByUser(userID uint64) ([]carRow, error) {
 				SELECT DISTINCT ON (s.car_id, s.group_id)
 					s.car_id, s.group_id, s.odo, s.next_distance
 				FROM service_book.services s
-				WHERE s.next_distance IS NOT NULL -- Перенесли сюда, чтобы NULL-записи не перекрывали актуальные данные
 				ORDER BY s.car_id, s.group_id, s.odo DESC
 			) g
 			LEFT JOIN service_book.service_groups sg ON sg.group_id = g.group_id
+			-- Берём именно последнюю запись в группе (по максимальному odo) и только у неё
+			-- смотрим next_distance. Если у последней записи он не задан — группа в car_ext_data не попадает.
+			-- Фильтр нельзя ставить до DISTINCT ON: иначе выбралась бы более старая запись с next_distance.
+			WHERE g.next_distance IS NOT NULL
 			GROUP BY g.car_id
 		) ext ON ext.car_id = c.car_id
 		WHERE c.user_id = $1
