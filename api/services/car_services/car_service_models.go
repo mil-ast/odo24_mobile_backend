@@ -9,6 +9,16 @@ type CarServiceModel struct {
 	Price        *uint32 `json:"price"`
 }
 
+// CarServiceRow запись сервиса вместе с группой — для построения сервисной книжки.
+type CarServiceRow struct {
+	ServiceID   uint64
+	GroupID     uint64
+	Dt          string
+	Odo         *uint32
+	Price       *uint32
+	Description *string
+}
+
 type CarServiceCreateModel struct {
 	CarID        uint64
 	GroupID      uint64
