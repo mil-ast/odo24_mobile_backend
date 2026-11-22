@@ -7,3 +7,4 @@ __debug_bin*
 ansible
 odo24_mobile_backend
 nginx_conf
+restart.sh
