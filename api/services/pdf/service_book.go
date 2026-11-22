@@ -42,9 +42,10 @@ const (
 )
 
 // BuildServiceBook собирает PDF сервисной книжки:
-// титульная страница, затем по каждой группе — таблица её сервисов
-// и страница с пустыми строками для ручного заполнения.
-func BuildServiceBook(groups []groups_service.GroupModel, services []car_services_service.CarServiceRow) ([]byte, error) {
+// титульная страница, затем по каждой группе — таблица её сервисов.
+// На каждой странице повторяется название группы, а свободное место
+// до конца страницы заполняется пустыми строками для ручного заполнения.
+func BuildServiceBook(carName string, groups []groups_service.GroupModel, services []car_services_service.CarServiceRow) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(marginX, marginY, marginX)
 	pdf.SetAutoPageBreak(true, marginY)
@@ -52,7 +53,7 @@ func BuildServiceBook(groups []groups_service.GroupModel, services []car_service
 	pdf.AddUTF8FontFromBytes(fontFamily, "", fontRegular)
 	pdf.AddUTF8FontFromBytes(fontFamily, "B", fontBold)
 
-	drawTitlePage(pdf)
+	drawTitlePage(pdf, carName)
 
 	servicesByGroup := make(map[uint64][]car_services_service.CarServiceRow)
 	for _, service := range services {
@@ -62,25 +63,13 @@ func BuildServiceBook(groups []groups_service.GroupModel, services []car_service
 	groups = sortedGroups(groups)
 
 	for _, group := range groups {
-		groupServices := servicesByGroup[group.GroupID]
+		startGroupPage(pdf, group.Name)
 
-		pdf.AddPage()
-		drawGroupHeading(pdf, group.Name)
-
-		if len(groupServices) == 0 {
-			pdf.SetFont(fontFamily, "", 10)
-			pdf.SetTextColor(120, 120, 120)
-			pdf.CellFormat(tableWidth, cellHeight, "Записей нет", "", 1, "L", false, 0, "")
-			pdf.SetTextColor(0, 0, 0)
-			continue
+		for _, service := range servicesByGroup[group.GroupID] {
+			drawServiceRow(pdf, group.Name, service)
 		}
 
-		drawTableHeader(pdf)
-		for _, service := range groupServices {
-			drawServiceRow(pdf, service)
-		}
-
-		drawBlankPage(pdf, group.Name)
+		fillPageWithEmptyRows(pdf)
 	}
 
 	var buf bytes.Buffer
@@ -105,15 +94,26 @@ func sortedGroups(groups []groups_service.GroupModel) []groups_service.GroupMode
 	return result
 }
 
-func drawTitlePage(pdf *fpdf.Fpdf) {
+func drawTitlePage(pdf *fpdf.Fpdf, carName string) {
 	pdf.AddPage()
 
 	pdf.SetFont(fontFamily, "B", 34)
 	pdf.SetXY(marginX, 90)
 	pdf.CellFormat(tableWidth, 20, bookTitle, "", 1, "C", false, 0, "")
 
+	lineY := 125.0
+	carName = strings.TrimSpace(carName)
+	if carName != "" {
+		pdf.SetFont(fontFamily, "", 16)
+		pdf.SetTextColor(70, 70, 70)
+		pdf.SetXY(marginX, 112)
+		pdf.MultiCell(tableWidth, 8, carName, "", "C", false)
+		pdf.SetTextColor(0, 0, 0)
+		lineY = math.Max(lineY, pdf.GetY()+8)
+	}
+
 	pdf.SetDrawColor(160, 160, 160)
-	pdf.Line(marginX+60, 125, marginX+tableWidth-60, 125)
+	pdf.Line(marginX+60, lineY, marginX+tableWidth-60, lineY)
 
 	pdf.SetFont(fontFamily, "", 12)
 	pdf.SetTextColor(90, 90, 90)
@@ -149,7 +149,15 @@ func drawTableHeader(pdf *fpdf.Fpdf) {
 	pdf.SetFont(fontFamily, "", 10)
 }
 
-func drawServiceRow(pdf *fpdf.Fpdf, service car_services_service.CarServiceRow) {
+// startGroupPage начинает новую страницу группы: заголовок с названием
+// и шапка таблицы — повторяются на каждой странице группы.
+func startGroupPage(pdf *fpdf.Fpdf, groupName string) {
+	pdf.AddPage()
+	drawGroupHeading(pdf, groupName)
+	drawTableHeader(pdf)
+}
+
+func drawServiceRow(pdf *fpdf.Fpdf, groupName string, service car_services_service.CarServiceRow) {
 	comment := ""
 	if service.Description != nil {
 		comment = strings.TrimSpace(*service.Description)
@@ -157,10 +165,9 @@ func drawServiceRow(pdf *fpdf.Fpdf, service car_services_service.CarServiceRow) 
 
 	rowHeight := cellHeight + commentRowHeight(pdf, comment)
 
-	// Строка не помещается — переносим на новую страницу и повторяем шапку таблицы.
+	// Строка не помещается — продолжаем на новой странице с заголовком группы.
 	if pdf.GetY()+rowHeight > maxY(pdf) {
-		pdf.AddPage()
-		drawTableHeader(pdf)
+		startGroupPage(pdf, groupName)
 	}
 
 	x := marginX
@@ -174,11 +181,8 @@ func drawServiceRow(pdf *fpdf.Fpdf, service car_services_service.CarServiceRow) 
 	drawCommentRow(pdf, x, y+cellHeight, comment)
 }
 
-func drawBlankPage(pdf *fpdf.Fpdf, groupName string) {
-	pdf.AddPage()
-	drawGroupHeading(pdf, groupName)
-	drawTableHeader(pdf)
-
+// fillPageWithEmptyRows добивает текущую страницу пустыми строками таблицы.
+func fillPageWithEmptyRows(pdf *fpdf.Fpdf) {
 	for pdf.GetY()+cellHeight+commentHeight <= maxY(pdf) {
 		y := pdf.GetY()
 		pdf.SetXY(marginX, y)

@@ -5,18 +5,21 @@ import (
 
 	"github.com/gin-gonic/gin"
 	car_services_service "github.com/mil-ast/odo24_mobile_backend/api/services/car_services"
+	cars_service "github.com/mil-ast/odo24_mobile_backend/api/services/cars"
 	groups_service "github.com/mil-ast/odo24_mobile_backend/api/services/groups"
 	pdf_service "github.com/mil-ast/odo24_mobile_backend/api/services/pdf"
 	"github.com/mil-ast/odo24_mobile_backend/api/utils"
 )
 
 type PdfController struct {
+	carsService        *cars_service.CarsService
 	groupsService      *groups_service.GroupsService
 	carServicesService *car_services_service.CarServicesService
 }
 
-func NewPdfController(groupsSrv *groups_service.GroupsService, carServicesSrv *car_services_service.CarServicesService) *PdfController {
+func NewPdfController(carsSrv *cars_service.CarsService, groupsSrv *groups_service.GroupsService, carServicesSrv *car_services_service.CarServicesService) *PdfController {
 	return &PdfController{
+		carsService:        carsSrv,
 		groupsService:      groupsSrv,
 		carServicesService: carServicesSrv,
 	}
@@ -26,6 +29,12 @@ func NewPdfController(groupsSrv *groups_service.GroupsService, carServicesSrv *c
 func (ctrl *PdfController) GetServiceBookPDF(c *gin.Context) {
 	userID := c.MustGet("userID").(uint64)
 	carID := c.MustGet("carID").(uint64)
+
+	carName, err := ctrl.carsService.GetCarName(carID)
+	if err != nil {
+		utils.BindServiceErrorWithAbort(c, "ServiceBookPDFCarError", "Не удалось получить авто", err)
+		return
+	}
 
 	groups, err := ctrl.groupsService.GetGroupsByUser(userID)
 	if err != nil {
@@ -39,7 +48,7 @@ func (ctrl *PdfController) GetServiceBookPDF(c *gin.Context) {
 		return
 	}
 
-	pdfBytes, err := pdf_service.BuildServiceBook(groups, services)
+	pdfBytes, err := pdf_service.BuildServiceBook(carName, groups, services)
 	if err != nil {
 		utils.BindServiceErrorWithAbort(c, "ServiceBookPDFBuildError", "Не удалось сформировать PDF", err)
 		return

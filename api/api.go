@@ -49,7 +49,7 @@ func InitHandlers() *gin.Engine {
 	apiCarsID.DELETE("", carsCtrl.Delete)
 
 	//service book pdf
-	pdfCtrl := handlers.NewPdfController(groupsSrv, carServicesSrv)
+	pdfCtrl := handlers.NewPdfController(carsSrv, groupsSrv, carServicesSrv)
 	r.GET("/api/:carID/get_pdf", authCtrl.CheckAuth, carsCtrl.CheckParamCarID, pdfCtrl.GetServiceBookPDF)
 
 	//groups
