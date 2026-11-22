@@ -1,7 +1,10 @@
 package cars_service
 
 import (
-	"github.com/lib/pq"
+	"database/sql"
+	"encoding/json"
+	"errors"
+
 	"github.com/mil-ast/odo24_mobile_backend/api/services"
 	"github.com/mil-ast/odo24_mobile_backend/db"
 )
@@ -12,76 +15,152 @@ func NewCarsService() *CarsService {
 	return &CarsService{}
 }
 
-func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
+// carRow — сырая строка из запроса списка авто (без разбора car_ext_data).
+type carRow struct {
+	CarID         uint64
+	Name          string
+	Odo           uint32
+	Avatar        bool
+	ServicesTotal uint32
+	RawExt        []byte
+}
+
+// carExtDataRaw — промежуточная структура для разбора car_ext_data из SQL.
+// ServiceOdo — пробег последнего сервиса в группе (service_book.services.odo).
+// В SQL next_odo приходит как дельта (next_distance), а left_odo вычисляется на стороне Go.
+type carExtDataRaw struct {
+	ServiceOdo uint32 `json:"odo"`
+	NextOdo    uint32 `json:"next_odo"`
+	GroupName  string `json:"group_name"`
+}
+
+func (srv *CarsService) queryCarsByUser(userID uint64) ([]carRow, error) {
 	pg := db.Conn()
 
-	rows, err := pg.Query(`SELECT c.car_id, c."name", c.odo, c.avatar, count(s.service_id) services_total
+	rows, err := pg.Query(`SELECT 
+		c.car_id, 
+		c."name", 
+		c.odo, 
+		c.avatar,
+		COALESCE(cnt.services_total, 0) AS services_total,
+		ext.car_ext_data
 		FROM service_book.car c
-		LEFT JOIN service_book.services s ON s.car_id = c.car_id
-		WHERE c.user_id=$1
-		GROUP BY c.car_id`, userID)
+		LEFT JOIN (
+			SELECT s.car_id, count(*) AS services_total
+			FROM service_book.services s
+			GROUP BY s.car_id
+		) cnt ON cnt.car_id = c.car_id
+		LEFT JOIN (
+			SELECT 
+				g.car_id,
+				jsonb_agg(
+					jsonb_build_object(
+						'odo', g.odo,
+						'next_odo', g.next_distance,
+						'group_name', COALESCE(sg."name", 'Group ' || g.group_id::text)
+					) ORDER BY g.group_id
+				) AS car_ext_data
+			FROM (
+				SELECT DISTINCT ON (s.car_id, s.group_id)
+					s.car_id, s.group_id, s.odo, s.next_distance
+				FROM service_book.services s
+				ORDER BY s.car_id, s.group_id, s.odo DESC
+			) g
+			LEFT JOIN service_book.service_groups sg ON sg.group_id = g.group_id
+			-- Берём именно последнюю запись в группе (по максимальному odo) и только у неё
+			-- смотрим next_distance. Если у последней записи он не задан — группа в car_ext_data не попадает.
+			-- Фильтр нельзя ставить до DISTINCT ON: иначе выбралась бы более старая запись с next_distance.
+			WHERE g.next_distance IS NOT NULL
+			GROUP BY g.car_id
+		) ext ON ext.car_id = c.car_id
+		WHERE c.user_id = $1
+		ORDER BY c.car_id`, userID)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
-	var cars []CarModel
+	var cars []carRow
 	for rows.Next() {
-		var car CarModel
-		err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar, &car.ServicesTotal)
-		if err != nil {
+		var car carRow
+		if err := rows.Scan(&car.CarID, &car.Name, &car.Odo, &car.Avatar, &car.ServicesTotal, &car.RawExt); err != nil {
 			return nil, err
 		}
 		cars = append(cars, car)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return cars, nil
 }
 
-func (srv *CarsService) GetCarNextServiceInformation(carIDs []uint64) (map[uint64]map[uint64]rowGroup, error) {
-	if len(carIDs) == 0 {
-		return nil, nil
-	}
-	pg := db.Conn()
-
-	rows, err := pg.Query(`SELECT g.car_id, g.group_id, g.odo, g.next_distance FROM (
-    SELECT s.car_id, s.group_id, s.odo, s.next_distance, row_number()
-    OVER (PARTITION BY s.car_id, s.group_id ORDER BY s.odo DESC) AS rownum
-		FROM service_book.services s
-		WHERE s.car_id = ANY($1)
-	) g
-	WHERE rownum=1 and g.next_distance is not null;`, pq.Array(carIDs))
+func (srv *CarsService) GetCarsByUser(userID uint64) ([]CarModel, error) {
+	rows, err := srv.queryCarsByUser(userID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	rowsMap := make(map[uint64]map[uint64]rowGroup)
-	var mapGroupIDs = make(map[uint64]struct{})
-	for rows.Next() {
-		var row struct {
-			CarID   uint64
-			GroupID uint64
-			Odo     uint32
-			NextOdo uint32
+	var cars = make([]CarModel, len(rows))
+	for i, row := range rows {
+		car := CarModel{
+			CarID:         row.CarID,
+			Name:          row.Name,
+			Odo:           row.Odo,
+			Avatar:        row.Avatar,
+			ServicesTotal: row.ServicesTotal,
 		}
-		err := rows.Scan(&row.CarID, &row.GroupID, &row.Odo, &row.NextOdo)
-		if err != nil {
-			return nil, err
+		if len(row.RawExt) > 0 {
+			if err := json.Unmarshal(row.RawExt, &car.CarExtData); err != nil {
+				return nil, err
+			}
 		}
-		if _, ok := rowsMap[row.CarID]; !ok {
-			rowsMap[row.CarID] = make(map[uint64]rowGroup)
-		}
-
-		rowsMap[row.CarID][row.GroupID] = rowGroup{
-			Odo:     row.Odo,
-			NextOdo: row.NextOdo,
-		}
-		mapGroupIDs[row.GroupID] = struct{}{}
+		cars[i] = car
 	}
 
-	return rowsMap, nil
+	return cars, nil
+}
+
+func (srv *CarsService) GetCarsByUserV2(userID uint64) ([]CarModelV2, error) {
+	rows, err := srv.queryCarsByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var cars = make([]CarModelV2, len(rows))
+	for i, row := range rows {
+		car := CarModelV2{
+			CarID:         row.CarID,
+			Name:          row.Name,
+			Odo:           row.Odo,
+			Avatar:        row.Avatar,
+			ServicesTotal: row.ServicesTotal,
+		}
+		if len(row.RawExt) > 0 {
+			var extData []carExtDataRaw
+			if err := json.Unmarshal(row.RawExt, &extData); err != nil {
+				return nil, err
+			}
+			for _, e := range extData {
+				car.CarExtData = append(car.CarExtData, CarExtDataV2{
+					ServiceOdo: e.ServiceOdo,
+					LeftOdo:    computeLeftOdo(e.ServiceOdo, e.NextOdo, row.Odo),
+					GroupName:  e.GroupName,
+				})
+			}
+		}
+		cars[i] = car
+	}
+
+	return cars, nil
+}
+
+// computeLeftOdo: left_odo = (последний сервис авто в группе: service_odo + next_distance) - текущий пробег авто.
+// Аналогично расчёту left_odo в api/services/groups.
+func computeLeftOdo(serviceOdo, nextDistance, carOdo uint32) uint32 {
+	nextRecommendedOdo := uint64(serviceOdo) + uint64(nextDistance)
+	remaining := min(max(int64(nextRecommendedOdo)-int64(carOdo), 0), int64(^uint32(0)))
+	return uint32(remaining)
 }
 
 func (srv *CarsService) Create(userID uint64, carBody CarCreateModel) (*CarModel, error) {
@@ -105,38 +184,34 @@ func (srv *CarsService) Update(carBody CarModel) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`UPDATE service_book.car SET "name"=$1,odo=$2,avatar=$3 WHERE car_id=$4`, carBody.Name, carBody.Odo, carBody.Avatar, carBody.CarID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (srv *CarsService) UpdateODO(carID uint64, odo uint32) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`UPDATE service_book.car SET odo=$1 WHERE car_id=$2`, odo, carID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (srv *CarsService) Delete(carID uint64) error {
 	pg := db.Conn()
 
 	_, err := pg.Exec(`DELETE FROM service_book.car WHERE car_id=$1`, carID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (srv *CarsService) CheckOwner(carID, userID uint64) error {
 	pg := db.Conn()
 	var dbUserID uint64
-	pg.QueryRow("SELECT user_id FROM service_book.car c WHERE car_id=$1", carID).Scan(&dbUserID)
+	err := pg.QueryRow("SELECT user_id FROM service_book.car WHERE car_id=$1", carID).Scan(&dbUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return services.ErrorNoPermission
+		}
+		return err
+	}
+
 	if dbUserID != userID {
 		return services.ErrorNoPermission
 	}

@@ -33,6 +33,10 @@ func (srv *CarServicesService) GetServices(carID, groupID uint64) ([]CarServiceM
 		result = append(result, model)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return result, nil
 }
 
