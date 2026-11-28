@@ -180,6 +180,19 @@ func (srv *CarsService) Create(userID uint64, carBody CarCreateModel) (*CarModel
 	}, nil
 }
 
+// GetCarName возвращает название авто.
+func (srv *CarsService) GetCarName(carID uint64) (string, error) {
+	pg := db.Conn()
+
+	var name string
+	err := pg.QueryRow(`SELECT c."name" FROM service_book.car c WHERE c.car_id=$1`, carID).Scan(&name)
+	if err != nil {
+		return "", err
+	}
+
+	return name, nil
+}
+
 func (srv *CarsService) Update(carBody CarModel) error {
 	pg := db.Conn()
 

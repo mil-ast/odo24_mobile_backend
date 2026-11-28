@@ -48,6 +48,10 @@ func InitHandlers() *gin.Engine {
 	apiCarsID.PUT("/update_odo", carsCtrl.UpdateODO)
 	apiCarsID.DELETE("", carsCtrl.Delete)
 
+	//service book pdf
+	pdfCtrl := handlers.NewPdfController(carsSrv, groupsSrv, carServicesSrv)
+	r.GET("/api/:carID/get_pdf", authCtrl.CheckAuth, carsCtrl.CheckParamCarID, pdfCtrl.GetServiceBookPDF)
+
 	//groups
 	groupsCtrl := handlers.NewGroupsController(groupsSrv)
 	apiGroups := r.Group("/api/groups", authCtrl.CheckAuth)

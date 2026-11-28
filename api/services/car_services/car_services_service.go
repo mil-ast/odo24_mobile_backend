@@ -40,6 +40,37 @@ func (srv *CarServicesService) GetServices(carID, groupID uint64) ([]CarServiceM
 	return result, nil
 }
 
+// GetAllServicesByCar возвращает все записи сервисов авто (по всем группам)
+// в порядке даты — для сервисной книжки.
+func (srv *CarServicesService) GetAllServicesByCar(carID uint64) ([]CarServiceRow, error) {
+	pg := db.Conn()
+
+	rows, err := pg.Query(`SELECT s.service_id,s.group_id,s.dt,s.odo,s.price,s.description FROM service_book.services s WHERE s.car_id=$1 ORDER BY s.dt,s.service_id`, carID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var result []CarServiceRow
+
+	for rows.Next() {
+		var model CarServiceRow
+		err := rows.Scan(&model.ServiceID, &model.GroupID, &model.Dt, &model.Odo, &model.Price, &model.Description)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, model)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (srv *CarServicesService) Create(body CarServiceCreateModel) (*CarServiceModel, error) {
 	pg := db.Conn()
 
