@@ -3,9 +3,11 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/mil-ast/odo24_mobile_backend/api/handlers"
+	app_version_service "github.com/mil-ast/odo24_mobile_backend/api/services/app_version"
 	car_services_service "github.com/mil-ast/odo24_mobile_backend/api/services/car_services"
 	cars_service "github.com/mil-ast/odo24_mobile_backend/api/services/cars"
 	groups_service "github.com/mil-ast/odo24_mobile_backend/api/services/groups"
+	"github.com/mil-ast/odo24_mobile_backend/config"
 )
 
 func InitHandlers() *gin.Engine {
@@ -13,9 +15,14 @@ func InitHandlers() *gin.Engine {
 
 	r.GET("/api/ping", handlers.Ping)
 
+	appVersionSrv := app_version_service.NewAppVersionService(config.GetInstance().App.ApkMetadataPath)
 	groupsSrv := groups_service.NewGroupsService()
 	carsSrv := cars_service.NewCarsService()
 	carServicesSrv := car_services_service.NewCarServicesService()
+
+	//app version
+	appVersionCtrl := handlers.NewAppVersionController(appVersionSrv)
+	r.GET("/api/app_version", appVersionCtrl.Get)
 
 	//register
 	registerCtrl := handlers.NewRegisterController()
