@@ -1,11 +1,12 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
+
+	"github.com/goccy/go-yaml"
 )
 
-const configFilName string = "config.json"
+const configFileName string = "config.yaml"
 
 type Oauth struct {
 	TokenURL     string `json:"TokenURL"`
@@ -20,6 +21,7 @@ type Configuration struct {
 	App struct {
 		ServerAddr               string `json:"server_addr"`
 		ImageMagick              string `json:"imageMagick"`
+		ApkMetadataPath          string `json:"apk_metadata_path"`
 		JwtAccessPrivateKeyPath  string `json:"jwt_access_private_key_path"`
 		JwtAccessPublicKeyPath   string `json:"jwt_access_public_key_path"`
 		JwtRefreshPrivateKeyPath string `json:"jwt_refresh_private_key_path"`
@@ -61,12 +63,12 @@ func GetInstance() Configuration {
 }
 
 func (cfg *Configuration) read() {
-	body, err := os.ReadFile(configFilName)
+	body, err := os.ReadFile(configFileName)
 	if err != nil {
 		panic(err)
 	}
 
-	err = json.Unmarshal(body, &cfg)
+	err = yaml.Unmarshal(body, cfg)
 	if err != nil {
 		panic(err)
 	}
